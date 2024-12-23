@@ -1,0 +1,47 @@
+# This file contains metadata for your plugin.
+
+# This file should be included when you package your plugin.# Mandatory items:
+
+[general]
+name=Hypsometric Curve
+qgisMinimumVersion=3.0
+description=Calcola la curva ipsometrica di un bacino idrograficopartendo da un layer DEM e da un layer vettoriale contenente il poligono che delimita il bacino stesso. Puoi assegnare la banda di colore per la definizione delle quote altimetriche del terreno, inserire il numero per suddividere l'area del bacino delimitato dal poligono, per la definizione degli intervalli delle quote altimetriche.
+version=0.1
+author=dr. Geol. Faustino Cetraro
+email=geol-faustino@libero.it
+
+about=Calcola la curva ipsometrica di un bacino idrografico da un layer DEM del terreno e dalla definizione del perimetro del bacino, ottenuto da un layer vettoriale contenente il poligono che ne delimita i confini. È possibile scegliere il numero di banda per le quote altimetriche del terreno e definire il numero di classi degli intervalli di quota altimetrica per suddividere l'area del bacino stesso. Come risultato, vengono calcolate la quota minima, massima e media all'interno del poligono del bacino, l'area totale e il valore dell'integrale ipsometrico. Inoltre, viene disegnato il grafico della curva ipsometrica, con i relativi valori calcolati riportati in una tabella. È possibile salvare sia il grafico in formato immagine che la tabella dei valori in un file CSV o TXT. Per il funzionamento del plugin è richiesto l'uso delle librerie numpy, matplotlib, pyplot e csv.
+
+tracker=http://bugs
+repository=http://repo
+# End of mandatory metadata
+
+# Recommended items:
+
+hasProcessingProvider=no
+# Uncomment the following line and add your changelog:
+# changelog=
+
+# Tags are comma separated with spaces allowed
+tags=analysis, feature, polyline, polygon, statistics, vector
+
+homepage=http://homepage
+category=Vector
+icon=icon.png
+# experimental flag
+experimental=False
+
+# deprecated flag (applies to the whole plugin, not just a single version)
+deprecated=False
+
+# Since QGIS 3.8, a comma separated list of plugins to be installed
+# (or upgraded) can be specified.
+# Check the documentation for more information.
+# plugin_dependencies=
+
+Category of the plugin: Raster, Vector, Database or Web
+# category=
+
+# If the plugin can run on QGIS Server.
+server=False
+
