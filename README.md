@@ -43,3 +43,18 @@ Per eseguire i calcoli in modo accurato, è fondamentale utilizzare un **sistema
 Inoltre, è essenziale che **entrambi i layer** coinvolti nell'analisi, ovvero il *layer raster del DEM* e il *layer vettoriale* contenente il poligono del bacino, **siano nello stesso sistema di riferimento proiettato**.
 
 L'adozione di un **CRS proiettato** consente di lavorare in unità metriche, migliorando la precisione delle analisi e garantendo che le aree e le altezze siano calcolate correttamente rispetto alla superficie terrestre.
+
+
+### Aggiornamento - versione 0.2
+
+In questa versione sono state implementate diverse nuove funzionalità per migliorare l'interattività e l'usabilità dell'applicazione. Tra le principali novità:
+
+- **Assegnazione del colore alla curva ipsometrica**: È possibile personalizzare il colore della curva utilizzando il pulsante Colore. Questo permette di modificare l'aspetto grafico del grafico in modo semplice e immediato.
+- **Aggiornamento del grafico senza ricalcolo**: Dopo aver assegnato un colore alla curva, il grafico viene aggiornato dinamicamente senza la necessità di ricalcolare i dati. Questa funzionalità garantisce maggiore efficienza e una migliore esperienza d'uso.
+- **Visualizzazione di informazioni utili**: Sono state aggiunte funzionalità per visualizzare dettagli significativi come l'indice HI (Hypsometric Index) e altri dati correlati, direttamente sul grafico, offrendo una rappresentazione più chiara e completa.
+
+Grazie a queste nuove caratteristiche, l'applicazione risulta più versatile e intuitiva, rispondendo meglio alle esigenze degli utenti.
+
+![img3](https://github.com/user-attachments/assets/1936a0e6-2829-4a7e-9c5b-53e14bf70617)
+
+
