@@ -1,10 +1,10 @@
 Plugin Builder Results
 
 Your plugin HypsometricCurve was created in:
-    C:/Users/Faustino/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins
+    C:/Temp\hypsometric_curve
 
 Your QGIS plugin directory is located at:
-    C:/Users/Faustino/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins
+    C:/Users/Faustino/AppData/Roaming/QGIS/QGIS3/profiles/Faustino/python/plugins
 
 What's Next:
 
