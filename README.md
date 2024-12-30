@@ -44,8 +44,31 @@ Inoltre, è essenziale che **entrambi i layer** coinvolti nell'analisi, ovvero i
 
 L'adozione di un **CRS proiettato** consente di lavorare in unità metriche, migliorando la precisione delle analisi e garantendo che le aree e le altezze siano calcolate correttamente rispetto alla superficie terrestre.
 
+## Teoria implementata
 
-### Aggiornamento - versione 0.2
+La curva ispometrica, o ipsografica, rappresenta la distribuzione delle quote altimetriche all'interno di un bacino idrografico. Essa viene tracciata in relazione alla proporzione tra l'altezza totale e l'area complessiva del bacino. Le fasce altimetriche sono disposte in ordine decrescente, dalla quota massima a quella minima. La curva fornisce informazioni cruciali sulla distribuzione dell'area in funzione delle diverse altezze all'interno del bacino. L'altezza media hmed del bacino è calcolata come:
+
+![imgform1](https://github.com/user-attachments/assets/554f1d6b-34cb-4399-baf2-ea4a799c8884)
+
+dove A è l'area totale del bacino idrografico, h è l'altezza, che varia in funzione della posizione lungo il bacino (ad esempio, la quota a diverse altitudini), dA rappresenta l'elemento infinitesimo di area che corrisponde a un intervallo di altezza 
+h. 
+
+### Spiegazione della formula
+La formula calcola la media delle altezze del bacino idrografico, tenendo conto non solo delle altezze stesse, ma anche della distribuzione spaziale di queste altezze nel bacino.
+
+- **Integrazione dell'altezza lungo l'area del bacino**: Questa espressione somma (o integra) le altezze h su tutta l'area del bacino, ponderando ciascuna altezza per la porzione di area a cui corrisponde.
+- **Il significato del termine h⋅dA**: La quantità h⋅dA rappresenta il contributo all'altezza totale dato da una piccola area dA in cui l'altezza è h.
+- **L'integrale da 0 ad A**: Somma tutti i contributi delle diverse altezze su tutta l'area del bacino. In pratica, l'integrale calcola il totale delle "altezze ponderate" lungo l'intero bacino.
+- **Divisione per A**: Dopo aver calcolato la somma delle altezze ponderate, questa viene divisa per l'area totale A. Ciò serve a ottenere la media delle altezze lungo l'area, considerando appunto il peso che ogni intervallo di altezza ha in relazione all'area che occupa.
+
+### Integrale ispometrico HI
+L'integrale è definito come l'area sotto la curva ipsometrica calcolato nel seguente modo (Keller e Pinter, 2002):
+
+![imgform2](https://github.com/user-attachments/assets/0bcbf5fb-a907-4677-b821-7b50d0dd1b04)
+
+dove hmed è l'atezza media calcolata, hmax e hmin soni rispettivamente l'altezza massima e minima all'interno del bacino idrografico. Hi varia da 0, per regioni fortemente erose, a 1 per regioni leggermente erose (Pedrera et al. 2009).
+
+## Aggiornamento - versione 0.2
 
 In questa versione sono state implementate diverse nuove funzionalità per migliorare l'interattività e l'usabilità dell'applicazione. Tra le principali novità:
 
@@ -55,6 +78,15 @@ In questa versione sono state implementate diverse nuove funzionalità per migli
 
 Grazie a queste nuove caratteristiche, l'applicazione risulta più versatile e intuitiva, rispondendo meglio alle esigenze degli utenti.
 
-![img3](https://github.com/user-attachments/assets/1936a0e6-2829-4a7e-9c5b-53e14bf70617)
+![fig_3](https://github.com/user-attachments/assets/b4ce74eb-aaa0-4aee-9c9e-4fb5af563797)
 
+Nuova interfaccia con l'aggiunta di ulteriori informazioni e la possibilità di cambiare il colore alla curva
+
+![fig_4](https://github.com/user-attachments/assets/1b6d72cc-6de7-4b2b-a459-17460ec23791)
+
+La scheda Tabella mostra i valori calcolati con la possibilità di salvarsli su file
+
+![fig_5](https://github.com/user-attachments/assets/c0d7ebfd-cd2a-48b1-bc3b-4f919945719b)
+
+La scheda Informazioni riporta la definizione delle varie caratteristiche calcolate.
 
