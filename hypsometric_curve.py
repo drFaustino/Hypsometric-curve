@@ -168,7 +168,7 @@ class HypsometricCurve:
             self.dlg = HypsometricCurveDialog()
         
         self.dlg.progressBar.setValue(0)
-        
+
         # UI bindings
         self.dlg.cmb_dem.clear()
         self.dlg.cmb_dem.addItems([layer.name() for layer in QgsProject.instance().mapLayers().values() if isinstance(layer, QgsRasterLayer)])
@@ -189,7 +189,8 @@ class HypsometricCurve:
         self.dlg.pushButton_canc.clicked.connect(self.reset_fields)
         self.dlg.pushButton_salva_tab.clicked.connect(self.save_table)
         self.dlg.pushButton_salva_graph.clicked.connect(self.save_graph)
-        self.dlg.pushButton_close.clicked.connect(self.dlg.close)
+        self.dlg.pushButton_refresh.clicked.connect(self.pushButton_refresh)
+        self.dlg.pushButton_close.clicked.connect(self.handle_close)
 
         # min and max class intervals
         self.dlg.spinBox_classi.setMinimum(10)
@@ -244,6 +245,13 @@ class HypsometricCurve:
                 # After selecting the color, update the chart
                 self.update_graph_color()
 
+    def pushButton_refresh(self):
+        # Check if the table is not empty
+            if self.dlg.tableWidget_tabella.rowCount() > 0:
+                # After selecting the color, update the chart
+                self.update_graph_color()
+
+
     def update_units_label(self):
         """Update the label with the measurement units based on the CRS of the DEM layer."""
         raster_name = self.dlg.cmb_dem.currentText()
@@ -274,7 +282,7 @@ class HypsometricCurve:
             self.dlg.lbl_hmin.setText("grad")
             self.dlg.lbl_hmax.setText("grad")
             self.dlg.lbl_hmed.setText("grad")
-            self.dlg.lbl_A.setText("grad")
+            self.dlg.lbl_A.setText("---")
 
     def get_band_count(self):
         """Get the number of bands in the selected raster layer."""
@@ -331,7 +339,7 @@ class HypsometricCurve:
             self.dlg.lbl_hmin.setText("grad")
             self.dlg.lbl_hmax.setText("grad")
             self.dlg.lbl_hmed.setText("grad")
-            self.dlg.lbl_A.setText("grad")
+            self.dlg.lbl_A.setText("---")
 
         band_index = int(self.dlg.cmb_band.currentText())
 
@@ -597,7 +605,7 @@ class HypsometricCurve:
         # Converti i dati del blocco in un array numpy
         data = np.frombuffer(block.data(), dtype=np.float32).reshape((height, width))
 
-        # Handle NaN (NoData) values ​​in data
+        # Handle NaN (NoData) values in data
         data = np.nan_to_num(data, nan=np.nan)
 
         # Get bandwidth statistics (min and max)
@@ -679,7 +687,10 @@ class HypsometricCurve:
         # Calculate the weighted sum
         for i in range(len(intervals) - 1):
             # Calculate the height for the interval (h = intervals[i] - h_min)
-            h = intervals[i] - h_min
+            # h = intervals[i] - h_min
+
+            # Calculate the average height of the interval (average of the two extremes)
+            h_avg = ((intervals[i] + intervals[i + 1]) / 2) - h_min
 
             # Calculate the area for the interval (dA = a_cum[i] - a_cum[i+1])
             if i < len(intervals) - 2:
@@ -691,8 +702,9 @@ class HypsometricCurve:
             if dA < 0:
                 dA = 0
 
-            # Weighted sum of height by area of ​​interval
-            weighted_sum += h * dA
+            # Weighted sum of height by area of interval
+            # weighted_sum += h * dA
+            weighted_sum += h_avg * dA
 
         # The hypsometric mean is the weighted sum divided by the total area
         if total_area > 0:
@@ -711,7 +723,6 @@ class HypsometricCurve:
             h_h_tot = h / (h_max - h_min)
             a_cum = cumulative_areas[i]
             a_cum_norm = a_cum / total_area
-            # d_a = cumulative_areas[i - 1] - a_cum if i > 0 else a_cum - cumulative_areas[i + 1]
             d_a = a_cum - cumulative_areas[i + 1] if i < len(intervals) - 2 else a_cum
 
             self.dlg.tableWidget_tabella.setItem(i, 0, QTableWidgetItem(f"{intervals[i]:.2f}-{intervals[i + 1]:.2f}"))
@@ -740,9 +751,9 @@ class HypsometricCurve:
         
          # Plot the hypsometric curve
         ax.plot(a_norm, h_norm, color=self.selected_color.name(), label="Curva ipsometrica")
-        ax.set_xlabel("Area relativa a/A")
-        ax.set_ylabel("Arltezza relativa h/H")
-        ax.set_title("Grafico curva ipsometrica")
+        ax.set_xlabel("Area relativa (a/A)", labelpad=15, fontweight="bold")
+        ax.set_ylabel("Altezza relativa (h/H)", labelpad=10, fontweight="bold")
+        ax.set_title("Grafico curva ipsometrica", pad=20, fontweight="bold")
         ax.legend()
         ax.grid(True)  # Show the grid
         
@@ -805,9 +816,9 @@ class HypsometricCurve:
         ax.set_ylim(0, 1.1)
         
         # Set labels for the axes
-        ax.set_xlabel("Area relativa a/A", labelpad=15)
-        ax.set_ylabel("Altezza relativa h/H", labelpad=10)
-        ax.set_title("Grafico curva ipsometrica", pad=20)
+        ax.set_xlabel("Area relativa (a/A)", labelpad=15, fontweight="bold")
+        ax.set_ylabel("Altezza relativa (h/H)", labelpad=10, fontweight="bold")
+        ax.set_title("Grafico curva ipsometrica", pad=20, fontweight="bold")
         
         # Add a grid
         ax.grid(True)
@@ -849,9 +860,9 @@ class HypsometricCurve:
         
         # Draw the hypsometric curve with the selected color
         ax.plot(a_norm, h_norm, color=self.selected_color.name(), label="Curva ipsometrica")
-        ax.set_xlabel("Area relativa a/A")
-        ax.set_ylabel("Altezza relativa h/H")
-        ax.set_title("Grafico curva ipsometrica")
+        ax.set_xlabel("Area relativa (a/A)", labelpad=15, fontweight="bold")
+        ax.set_ylabel("Altezza relativa (h/H)", labelpad=10, fontweight="bold")
+        ax.set_title("Grafico curva ipsometrica", pad=20, fontweight="bold")
         ax.legend()
         ax.grid(True)  # Show grid
         
@@ -913,25 +924,7 @@ class HypsometricCurve:
                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             
             if reply == QMessageBox.Yes:
-
                 # If "Yes"
-                self.dlg.lineEdit_hmin.setText("0.00")
-                self.dlg.lineEdit_hmax.setText("0.00")
-                self.dlg.lineEdit_A.setText("0.00")
-                self.dlg.lineEdit_hmed.setText("0.00")
-                self.dlg.lineEdit_HI.setText("0.00")
-
-                # Reset the tabel
-                self.dlg.tableWidget_tabella.clearContents()  # Svuota il contenuto della tabella
-                self.dlg.tableWidget_tabella.setRowCount(0)   # Elimina tutte le righe
-
-                # Reset any stored data related to the computation
-                self.cumulative_areas = []
-                self.total_area = 0.0
-                self.h_min = 0.0
-                self.h_max = 0.0
-                self.hypsometric_mean = 0.0
-
                 # Clear your memory
                 self.clear_memory()
 
@@ -943,16 +936,35 @@ class HypsometricCurve:
     
     def clear_memory(self):
         """Clear internal memory of stored data."""
+
         self.cumulative_areas = []
         self.total_area = 0.0
         self.h_min = 0.0
         self.h_max = 0.0
         self.hypsometric_mean = 0.0
 
+        # reset
+        self.dlg.lineEdit_hmin.setText("0.00")
+        self.dlg.lineEdit_hmax.setText("0.00")
+        self.dlg.lineEdit_A.setText("0.00")
+        self.dlg.lineEdit_hmed.setText("0.00")
+        self.dlg.lineEdit_HI.setText("0.00")
+
+        # Reset the tabel
+        self.dlg.tableWidget_tabella.clearContents()  # Svuota il contenuto della tabella
+        self.dlg.tableWidget_tabella.setRowCount(0)   # Elimina tutte le righe
+
     def save_table(self):
         """Save table data to a CSV file."""
+
         table = self.dlg.tableWidget_tabella
-        filename, _ = QtWidgets.QFileDialog.getSaveFileName(self.dlg, "Save Table", "", "CSV Files (*.csv);;Text Files (*.txt)")
+
+        # Check if the table contains any data
+        if table.rowCount() == 0:
+            QtWidgets.QMessageBox.warning(self.dlg, "Attenzione", "La tabella e' vuota. Esegui il calcolo prima di salvare.")
+            return
+
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(self.dlg, "Salva la Tabella", "", "CSV Files (*.csv);;Text Files (*.txt)")
         
         # Stop if user pressed "Cancel"
         if not filename:
@@ -960,7 +972,7 @@ class HypsometricCurve:
        
         # Retrieve decimal separator from combobox (0 for period, 1 for comma)
         decimal_separator = '.' if self.dlg.cmb_decimal.currentIndex() == 0 else ','
-
+        
         if filename:
             try:
                 with open(filename, 'w', newline='', encoding='utf-8') as f:
@@ -994,6 +1006,14 @@ class HypsometricCurve:
 
     def save_graph(self):
         """Save graph to an image file."""
+
+        table = self.dlg.tableWidget_tabella
+
+        # Check if the table contains any data
+        if table.rowCount() == 0:
+            QtWidgets.QMessageBox.warning(self.dlg, "Attenzione", "Nessun dato presente sul grafico da salvare!")
+            return
+
         path, _ = QFileDialog.getSaveFileName(None, "Save Graph", "", "Images (*.png *.jpg)")
 
         # Stop if user pressed "Cancel"
@@ -1035,3 +1055,17 @@ class HypsometricCurve:
         table.setColumnWidth(3, 90)
         table.setColumnWidth(4, 70)
         table.setColumnWidth(5, 60)  # Column 6 has index 5
+    
+    def handle_close(self):
+        """
+        Clears the UI and closes the window.
+        """
+        # Clear your memory
+        self.clear_memory()
+
+        # Reset the graph to the initial state with axes from 0 to 1 and grid
+        self.initialize_graph()
+
+        # Close the window
+        self.dlg.close()  
+
