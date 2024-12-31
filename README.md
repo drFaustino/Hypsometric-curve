@@ -90,3 +90,11 @@ La scheda Tabella mostra i valori calcolati con la possibilità di salvarsli su 
 
 La scheda Informazioni riporta la definizione delle varie caratteristiche calcolate.
 
+## Aggiornamento - versione 0.3
+
+In questa versione sono stati corretti diversi bug, ottimizzata l'interfaccia utente, introdotto il nuovo comando "**Aggiorna**" per aggiornare la visualizzazione del grafico, implementati ulteriori controlli e avvisi per migliorare l'esperienza d'uso.
+
+![img_1a](https://github.com/user-attachments/assets/f9983ec3-b07a-4e4d-8d4f-fdccc120255e)
+
+la figura mostra le modifiche apportate. Tra le altre cose, sul grafico sono stati riportati in grassetto i titoli.
+
