@@ -98,3 +98,13 @@ In questa versione sono stati corretti diversi bug, ottimizzata l'interfaccia ut
 
 la figura mostra le modifiche apportate. Tra le altre cose, sul grafico sono stati riportati in grassetto i titoli.
 
+## Update - version 0.4
+
+The code version now supports language translation, specifically Italian and American English.
+
+![img_en1](https://github.com/user-attachments/assets/725bdcda-e314-4fe1-902f-909f8b2cbb08)
+
+Interface in English
+
+![img_en2](https://github.com/user-attachments/assets/f4e1c9ca-b542-4526-8414-10aa594b6fd5)
+
