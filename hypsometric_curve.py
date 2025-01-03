@@ -69,26 +69,37 @@ class HypsometricCurve:
         self.iface = iface
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
+
         # initialize locale
         locale = QSettings().value('locale/userLocale')[0:2]
-        locale_path = os.path.join(
-            self.plugin_dir,
-            'i18n',
-            'HypsometricCurve_{}.qm'.format(locale))
+
+        # initialize locale path
+        locale_path = os.path.join(self.plugin_dir, 'i18n', f'hypsometric_curve_{locale}.qm')
 
         if os.path.exists(locale_path):
             self.translator = QTranslator()
-            self.translator.load(locale_path)
-            QCoreApplication.installTranslator(self.translator)
+            if self.translator.load(locale_path):  # Check if load was successful
+                QCoreApplication.installTranslator(self.translator)
+                # self.show_message("Success", f"The locale file '{locale}' has been loaded successfully.")
+            else:
+                self.show_message(self.tr("Errore"), self.tr("Impossibile caricare il file locale: {locale_path}").format(locale_path=locale_path))
         
         # Declare instance attributes
         self.actions = []
         self.menu = self.tr(u'&Hypsometric Curve')
 
         # Check if plugin was started the first time in current QGIS session
-        # Must be set in initGui() to survive plugin reloads
         self.first_start = None
 
+    def show_message(self, title, message):
+        """Show a dialog message to inform the user."""
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Information)  # You can change the icon type (e.g. Critical for errors)
+        msg.setText(message)
+        msg.setWindowTitle(title)
+        msg.exec_()
+
+  
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
         """Get the translation for a string using Qt translation API.
@@ -160,13 +171,13 @@ class HypsometricCurve:
 
     def run(self):
         """Run method that performs all the real work"""
-        
+
         # Create the dialog with elements (after translation) and keep reference
         # Only create GUI ONCE in callback, so that it will only load when the plugin is started
         if self.first_start == True:
             self.first_start = False
             self.dlg = HypsometricCurveDialog()
-        
+
         self.dlg.progressBar.setValue(0)
 
         # UI bindings
@@ -228,6 +239,7 @@ class HypsometricCurve:
             # substitute with your code.
             pass
     
+
     def select_color(self):
         # Usa il dialogo per selezionare un colore
         color = QColorDialog.getColor()
@@ -258,7 +270,7 @@ class HypsometricCurve:
         raster_layer = next((layer for layer in QgsProject.instance().mapLayers().values() if layer.name() == raster_name), None)
 
         if not raster_layer:
-            self.iface.messageBar().pushMessage("Error", "Select a valid DEM layer", level=3)
+            self.iface.messageBar().pushMessage(self.tr("Errore"), self.tr("Seleziona un layer DEM valido"), level=3)
             return
         
         # Check if the CRS of the layers is geographic
@@ -305,7 +317,7 @@ class HypsometricCurve:
         raster_layer = next((layer for layer in QgsProject.instance().mapLayers().values() if layer.name() == raster_name), None)
 
         if not raster_layer:
-            self.iface.messageBar().pushMessage("Error", "Select a valid DEM layer", level=3)
+            self.iface.messageBar().pushMessage(self.tr("Errore"), self.tr("Seleziona un layer DEM valido"), level=3)
             return
         
         # Check if the CRS of the layers is geographic
@@ -315,9 +327,11 @@ class HypsometricCurve:
             # Show a warning and stop the calculation
             QMessageBox.warning(
                 None,
-                "Attenzione: CRS Geografico",
-                "il layer DEM ha un CRS geografico (coordinate in gradi). "
-                "Per il calcolo e' necessario un sistema proiettato, come UTM."
+                self.tr("Attenzione: CRS Geografico"),
+                self.tr(
+                    "Il layer DEM ha un CRS geografico (coordinate in gradi). "
+                    "Per il calcolo è necessario un sistema proiettato, come UTM."
+                )
             )
             return
 
@@ -401,12 +415,12 @@ class HypsometricCurve:
         
         # Check if the basin layer was found
         if basin_layer is None:
-            self.iface.messageBar().pushMessage("Error", "No basin layer found with the selected name", level=3)
+            self.iface.messageBar().pushMessage(self.tr("Errore"), self.tr("Nessun leyer per il bacino trovato con il nome selezionato"), level=3)
             return
 
         # Check if the layer is a polygon
         if basin_layer.geometryType() != QgsWkbTypes.PolygonGeometry:
-            self.iface.messageBar().pushMessage("Error", "Selected layer is not a polygon layer", level=3)
+            self.iface.messageBar().pushMessage(self.tr("Errore"), self.tr("Il layer selezionato non e' un poligono."), level=3)
             return
 
         polygon_crs = basin_layer.crs()
@@ -415,19 +429,23 @@ class HypsometricCurve:
             # Show a warning and stop the calculation
             QMessageBox.warning(
                 None,
-                "Attenzione: CRS Geografico",
-                "il layer del bacino ha un CRS geografico (coordinate in gradi). "
-                "Per il calcolo e' necessario un sistema proiettato, come UTM."
+                self.tr("Attenzione: CRS Geografico"),
+                self.tr(
+                    "Il layer del bacino ha un CRS geografico (coordinate in gradi). "
+                    "Per il calcolo è necessario un sistema proiettato, come UTM."
+                )
             )
             return
+
         
         # Check if the CRS are the same (DEM layer and polygon)
         if dem_crs != polygon_crs:
             QMessageBox.warning(
                 None,
-                "CRS Non Compatibili",
-                "Il CRS del layer DEM e' diverso da quello del layer poligono del bacino. "
+                self.tr("CRS Non Compatibili"),
+                self.tr("Il CRS del layer DEM e' diverso da quello del layer poligono del bacino. "
                 "Assicurati che entrambi i layer abbiano lo stesso CRS."
+                )
             )
             return
 
@@ -435,14 +453,14 @@ class HypsometricCurve:
         feature = basin_layer.getFeature(0)  # Make sure you get a valid feature
 
         if not feature.isValid():
-            self.iface.messageBar().pushMessage("Error", "Invalid feature in basin layer", level=3)
+            self.iface.messageBar().pushMessage(self.tr("Errore"), self.tr("Caratteristica non valida nel layer del bacino."), level=3)
             return
 
         basin_geom = feature.geometry()
 
         # Check if the basin geometry is valid
         if basin_geom.isEmpty() or not basin_geom.isGeosValid():
-            self.iface.messageBar().pushMessage("Error", "Invalid or empty geometry for the basin layer", level=3)
+            self.iface.messageBar().pushMessage(self.tr("Errore"), self.tr("Geometria non valida o vuota per il layer del bacino"), level=3)
             return
 
         self.dlg.progressBar.setValue(50)
@@ -750,10 +768,10 @@ class HypsometricCurve:
         fig, ax = plt.subplots(figsize=(5.21, 3.51))
         
          # Plot the hypsometric curve
-        ax.plot(a_norm, h_norm, color=self.selected_color.name(), label="Curva ipsometrica")
-        ax.set_xlabel("Area relativa (a/A)", labelpad=15, fontweight="bold")
-        ax.set_ylabel("Altezza relativa (h/H)", labelpad=10, fontweight="bold")
-        ax.set_title("Grafico curva ipsometrica", pad=20, fontweight="bold")
+        ax.plot(a_norm, h_norm, color=self.selected_color.name(), label= self.tr("Curva ipsometrica"))
+        ax.set_xlabel(self.tr("Area relativa (a/A)"), labelpad=15, fontweight="bold")
+        ax.set_ylabel(self.tr("Altezza relativa (h/H)"), labelpad=10, fontweight="bold")
+        ax.set_title(self.tr("Grafico curva ipsometrica"), pad=20, fontweight="bold")
         ax.legend()
         ax.grid(True)  # Show the grid
         
@@ -816,9 +834,9 @@ class HypsometricCurve:
         ax.set_ylim(0, 1.1)
         
         # Set labels for the axes
-        ax.set_xlabel("Area relativa (a/A)", labelpad=15, fontweight="bold")
-        ax.set_ylabel("Altezza relativa (h/H)", labelpad=10, fontweight="bold")
-        ax.set_title("Grafico curva ipsometrica", pad=20, fontweight="bold")
+        ax.set_xlabel(self.tr("Area relativa (a/A)"), labelpad=15, fontweight="bold")
+        ax.set_ylabel(self.tr("Altezza relativa (h/H)"), labelpad=10, fontweight="bold")
+        ax.set_title(self.tr("Grafico curva ipsometrica"), pad=20, fontweight="bold")
         
         # Add a grid
         ax.grid(True)
@@ -859,10 +877,10 @@ class HypsometricCurve:
         fig, ax = plt.subplots(figsize=(5.21, 3.51))
         
         # Draw the hypsometric curve with the selected color
-        ax.plot(a_norm, h_norm, color=self.selected_color.name(), label="Curva ipsometrica")
-        ax.set_xlabel("Area relativa (a/A)", labelpad=15, fontweight="bold")
-        ax.set_ylabel("Altezza relativa (h/H)", labelpad=10, fontweight="bold")
-        ax.set_title("Grafico curva ipsometrica", pad=20, fontweight="bold")
+        ax.plot(a_norm, h_norm, color=self.selected_color.name(), label=self.tr("Curva ipsometrica"))
+        ax.set_xlabel(self.tr("Area relativa (a/A)"), labelpad=15, fontweight="bold")
+        ax.set_ylabel(self.tr("Altezza relativa (h/H)"), labelpad=10, fontweight="bold")
+        ax.set_title(self.tr("Grafico curva ipsometrica"), pad=20, fontweight="bold")
         ax.legend()
         ax.grid(True)  # Show grid
         
@@ -919,8 +937,8 @@ class HypsometricCurve:
         if self.dlg.tableWidget_tabella.rowCount() > 0:
 
             # Create the confirmation message
-            reply = QMessageBox.question(self.dlg, 'Conferma',
-                                        "Sei sicuro di voler resettare tutti i campi e i dati?",
+            reply = QMessageBox.question(self.dlg, self.tr('Conferma'),
+                                        self.tr("Sei sicuro di voler resettare tutti i campi e i dati?"),
                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             
             if reply == QMessageBox.Yes:
@@ -961,10 +979,10 @@ class HypsometricCurve:
 
         # Check if the table contains any data
         if table.rowCount() == 0:
-            QtWidgets.QMessageBox.warning(self.dlg, "Attenzione", "La tabella e' vuota. Esegui il calcolo prima di salvare.")
+            QtWidgets.QMessageBox.warning(self.dlg, self.tr("Attenzione"), self.tr("La tabella e' vuota. Esegui il calcolo prima di salvare."))
             return
 
-        filename, _ = QtWidgets.QFileDialog.getSaveFileName(self.dlg, "Salva la Tabella", "", "CSV Files (*.csv);;Text Files (*.txt)")
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(self.dlg, self.tr("Salva la Tabella"), "", "CSV Files (*.csv);;Text Files (*.txt)")
         
         # Stop if user pressed "Cancel"
         if not filename:
@@ -977,7 +995,7 @@ class HypsometricCurve:
             try:
                 with open(filename, 'w', newline='', encoding='utf-8') as f:
                     writer = csv.writer(f, delimiter=';')
-                    writer.writerow(["Intervalli", "a_cum", "a_cum/A", "dA", "h", "h/H"])
+                    writer.writerow([self.tr("Intervalli"), "a_cum", "a_cum/A", "dA", "h", "h/H"])
                     
                     for row in range(table.rowCount()):
                         row_data = []
@@ -997,11 +1015,11 @@ class HypsometricCurve:
                         writer.writerow(row_data)               
 
                 # Show a confirmation message
-                QtWidgets.QMessageBox.information(self.dlg, "Salvataggio completato", "I dati sono stati salvati correttamente!")
+                QtWidgets.QMessageBox.information(self.dlg, self.tr("Salvataggio completato"), self.tr("I dati sono stati salvati correttamente!"))
             
             except Exception as e:
                 # If there is an error while saving, it displays an error message
-                QtWidgets.QMessageBox.critical(self.dlg, "Errore", f"Si e' verificato un errore durante il salvataggio: {str(e)}")
+                QtWidgets.QMessageBox.critical(self.dlg, self.tr("Errore"), self.tr(f"Si e' verificato un errore durante il salvataggio: {str(e)}"))
 
 
     def save_graph(self):
@@ -1011,10 +1029,10 @@ class HypsometricCurve:
 
         # Check if the table contains any data
         if table.rowCount() == 0:
-            QtWidgets.QMessageBox.warning(self.dlg, "Attenzione", "Nessun dato presente sul grafico da salvare!")
+            QtWidgets.QMessageBox.warning(self.dlg, self.tr("Attenzione"), self.tr("Nessun dato presente sul grafico da salvare!"))
             return
 
-        path, _ = QFileDialog.getSaveFileName(None, "Save Graph", "", "Images (*.png *.jpg)")
+        path, _ = QFileDialog.getSaveFileName(None, self.tr("Salva grafico"), "", "Images (*.png *.jpg)")
 
         # Stop if user pressed "Cancel"
         if not path:
@@ -1025,11 +1043,11 @@ class HypsometricCurve:
                 plt.savefig(path)
                 
                 # Show a confirmation message
-                QMessageBox.information(None, "Salvataggio completato", "Il grafico e' stato salvato correttamente!")
+                QMessageBox.information(None, self.tr("Salvataggio completato"), self.tr("Il grafico e' stato salvato correttamente!"))
             
             except Exception as e:
                 # Show an error message if there is a problem while saving
-                QMessageBox.critical(None, "Errore", f"Si e' verificato un errore durante il salvataggio del grafico: {str(e)}")
+                QMessageBox.critical(None, self.tr("Errore"), self.tr(f"Si e' verificato un errore durante il salvataggio del grafico: {str(e)}"))
     
 
     def align_columns(self):
@@ -1068,4 +1086,3 @@ class HypsometricCurve:
 
         # Close the window
         self.dlg.close()  
-
