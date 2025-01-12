@@ -32,6 +32,9 @@ from qgis.core import QgsRectangle
 from qgis.core import QgsGeometry, QgsPointXY
 from qgis.core import QgsFeature, QgsField, QgsFields, QgsVectorLayer
 from qgis.core import QgsWkbTypes
+from qgis.core import QgsRasterDataProvider
+from qgis.core import Qgis
+from qgis.core import QgsCoordinateTransform
 
 from PyQt5.QtCore import QVariant
 from PyQt5.QtWidgets import QFileDialog, QTableWidgetItem
@@ -42,10 +45,14 @@ from PyQt5.QtWidgets import QProgressBar
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QColorDialog
 from PyQt5.QtGui import QColor
+from PyQt5.QtWidgets import QApplication
 
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import csv
+from osgeo import gdal
+from PyQt5.QtCore import QCoreApplication
+
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -99,7 +106,6 @@ class HypsometricCurve:
         msg.setWindowTitle(title)
         msg.exec_()
 
-  
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
         """Get the translation for a string using Qt translation API.
@@ -114,7 +120,6 @@ class HypsometricCurve:
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
         return QCoreApplication.translate('HypsometricCurve', message)
-
 
     def add_action(
         self,
@@ -168,7 +173,6 @@ class HypsometricCurve:
                 action)
             self.iface.removeToolBarIcon(action)
 
-
     def run(self):
         """Run method that performs all the real work"""
 
@@ -180,21 +184,35 @@ class HypsometricCurve:
 
         self.dlg.progressBar.setValue(0)
 
-        # UI bindings
+        # Reset fields at every run
+        self.reset_fields()
+
+        # Initialize progress bar
+        self.dlg.progressBar.setValue(0)
+
+        # Populate DEM combobox
         self.dlg.cmb_dem.clear()
-        self.dlg.cmb_dem.addItems([layer.name() for layer in QgsProject.instance().mapLayers().values() if isinstance(layer, QgsRasterLayer)])
+        dem_layers = [layer.name() for layer in QgsProject.instance().mapLayers().values() if isinstance(layer, QgsRasterLayer)]
+        if not dem_layers:
+            QMessageBox.warning(self.dlg, self.tr("Errore"), self.tr("Nessun layer DEM disponibile."))
+            return
+        self.dlg.cmb_dem.addItems(dem_layers)
 
+        # Populate band combobox
         self.dlg.cmb_band.clear()
-        self.dlg.cmb_band.addItems([str(band + 1) for band in range(self.get_band_count())])
+        raster_name = self.dlg.cmb_dem.currentText()
+        raster_layer = next((layer for layer in QgsProject.instance().mapLayers().values() if layer.name() == raster_name), None)
+        if raster_layer:
+            for band in range(raster_layer.bandCount()):
+                self.dlg.cmb_band.addItem(str(band + 1), band + 1)  # Aggiunge testo e dati
 
-        # Clears the combobox before loading new values
+        # Populate polygon layers combobox
         self.dlg.cmb_polibac.clear()
-
-        # Add polygon layers to the combobox
-        self.dlg.cmb_polibac.addItems(
-            [layer.name() for layer in QgsProject.instance().mapLayers().values() 
-            if isinstance(layer, QgsVectorLayer) and layer.geometryType() == QgsWkbTypes.PolygonGeometry]
-        )
+        polygon_layers = [layer.name() for layer in QgsProject.instance().mapLayers().values() if isinstance(layer, QgsVectorLayer) and layer.geometryType() == QgsWkbTypes.PolygonGeometry]
+        if not polygon_layers:
+            QMessageBox.warning(self.dlg, self.tr("Errore"), self.tr("Nessun layer poligonale disponibile."))
+            return
+        self.dlg.cmb_polibac.addItems(polygon_layers)
 
         self.dlg.pushButton_calc.clicked.connect(self.calculate_hypsometric_curve)
         self.dlg.pushButton_canc.clicked.connect(self.reset_fields)
@@ -238,7 +256,6 @@ class HypsometricCurve:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
             pass
-    
 
     def select_color(self):
         # Usa il dialogo per selezionare un colore
@@ -262,7 +279,6 @@ class HypsometricCurve:
             if self.dlg.tableWidget_tabella.rowCount() > 0:
                 # After selecting the color, update the chart
                 self.update_graph_color()
-
 
     def update_units_label(self):
         """Update the label with the measurement units based on the CRS of the DEM layer."""
@@ -303,47 +319,46 @@ class HypsometricCurve:
         if raster_layer:
             return raster_layer.bandCount()
         return 0
-        
+
+    #nuovo
     def calculate_hypsometric_curve(self):
         """Perform hypsometric calculations."""
 
-        # progress bar
+        # Progress bar
         self.dlg.progressBar.setValue(0)
 
-        # Clear your memory
-        self.clear_memory()
+        # Check if there is data in the table before proceeding
+        if self.dlg.tableWidget_tabella.rowCount() > 0:
+            reply = QMessageBox.question(self.dlg, self.tr('Conferma'),
+                                        self.tr("Vuoi procedere con un nuovo calcolo?"),
+                                        QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply == QMessageBox.No:
+                return
 
+        # Get selected DEM layer
         raster_name = self.dlg.cmb_dem.currentText()
         raster_layer = next((layer for layer in QgsProject.instance().mapLayers().values() if layer.name() == raster_name), None)
 
         if not raster_layer:
             self.iface.messageBar().pushMessage(self.tr("Errore"), self.tr("Seleziona un layer DEM valido"), level=3)
             return
-        
-        # Check if the CRS of the layers is geographic
-        dem_crs = raster_layer.crs()
 
+        # Check if the CRS of the layer is geographic
+        dem_crs = raster_layer.crs()
         if dem_crs.isGeographic():
-            # Show a warning and stop the calculation
-            QMessageBox.warning(
-                None,
-                self.tr("Attenzione: CRS Geografico"),
-                self.tr(
-                    "Il layer DEM ha un CRS geografico (coordinate in gradi). "
-                    "Per il calcolo è necessario un sistema proiettato, come UTM."
-                )
-            )
+            QMessageBox.warning(None, self.tr("CRS Geografico"), self.tr("Utilizzare un sistema proiettato, come UTM."))
             return
+
+        # Progress bar
+        self.dlg.progressBar.setValue(10)
 
         # Get the linear unit
         distance_unit = dem_crs.mapUnits()
-
         if distance_unit == QgsUnitTypes.DistanceMeters:
             self.dlg.lbl_hmin.setText("m")
             self.dlg.lbl_hmax.setText("m")
             self.dlg.lbl_hmed.setText("m")
             self.dlg.lbl_A.setText("m^2")
-
         elif distance_unit == QgsUnitTypes.DistanceFeet:
             self.dlg.lbl_hmin.setText("ft")
             self.dlg.lbl_hmax.setText("ft")
@@ -355,197 +370,245 @@ class HypsometricCurve:
             self.dlg.lbl_hmed.setText("grad")
             self.dlg.lbl_A.setText("---")
 
-        band_index = int(self.dlg.cmb_band.currentText())
+        # Get the selected band
+        band_index = self.dlg.cmb_band.currentData()
+        if band_index is None:
+            self.dlg.progressBar.setValue(0)
+            QMessageBox.critical(self.dlg, self.tr("Errore"), self.tr("Nessuna banda selezionata."))
+            return
 
-        # Get the raster layer dataProvider
-        provider = raster_layer.dataProvider()
-
-        # Use dataProvider to get bandwidth statistics
-        band_stats = provider.bandStatistics(band_index, QgsRasterBandStats.All)     
-
-        # Extract min and max values
-        h_min = band_stats.minimumValue
-        h_max = band_stats.maximumValue
-
-        # View min and max
-        self.dlg.lineEdit_hmin.setText(f"{h_min:.2f}")
-        self.dlg.lineEdit_hmax.setText(f"{h_max:.2f}")
-
-        self.dlg.progressBar.setValue(10)
-        
-        # Area calculations ok
-        cell_area = abs(raster_layer.rasterUnitsPerPixelX() * raster_layer.rasterUnitsPerPixelY())
-
-        self.dlg.progressBar.setValue(15)
-
-        # Get the raster size (number of rows and columns)
-        width = raster_layer.width()
-        height = raster_layer.height()
-
+        # Progress bar
         self.dlg.progressBar.setValue(20)
 
-        # Creates a QgsRectangle that represents the entire raster area
-        extent = raster_layer.extent()
-        rect = QgsRectangle(extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum())
+        provider = raster_layer.dataProvider()
 
-        self.dlg.progressBar.setValue(25)
+        # Get selected vector polygon layer
+        basin_name = self.dlg.cmb_polibac.currentText()
+        basin_layer = next((layer for layer in QgsProject.instance().mapLayers().values() if layer.name() == basin_name), None)
 
-        # Get data block for specified band
-        block = provider.block(band_index, rect, width, height)
+        if not basin_layer:
+            self.dlg.progressBar.setValue(0)
+            self.iface.messageBar().pushMessage(self.tr("Errore"), self.tr("Seleziona un layer vettoriale valido"), level=3)
+            return
 
+        # Ensure CRS compatibility
+        if raster_layer.crs() != basin_layer.crs():
+            QMessageBox.critical(None, self.tr("Errore"), self.tr("I layer DEM e vettoriale devono avere lo stesso CRS."))
+            return
+
+        # Extract vector geometry
+        basin_features = list(basin_layer.getFeatures())
+        if len(basin_features) == 0:
+            self.dlg.progressBar.setValue(0)
+            QMessageBox.critical(None, self.tr("Errore"), self.tr("Il layer vettoriale e' vuoto."))
+            return
+
+        # Progress bar
         self.dlg.progressBar.setValue(30)
 
-        # Convert the block data to a numpy array (first to bytes, then to float32)
-        data = np.frombuffer(block.data(), dtype=np.float32).reshape((height, width))
+        basin_geom = basin_features[0].geometry()
 
-        self.dlg.progressBar.setValue(35)
+        # Control which function to use based on the combobox index
+        index = self.dlg.cmb_statist_raster.currentIndex()
 
-        # Create a mask to identify valid pixels (not NoData)
-        valid_mask = ~np.isnan(data)
+        if index == 0:  # Full raster
+            file_path = raster_layer.dataProvider().dataSourceUri()
+            dataset = gdal.Open(file_path)
+            if not dataset:
+                self.dlg.progressBar.setValue(0)
+                QMessageBox.critical(self.dlg, self.tr("Errore"), self.tr("Impossibile aprire il file raster con GDAL."))
+                return
 
-        self.dlg.progressBar.setValue(40) 
+            band = dataset.GetRasterBand(band_index)
+            width = dataset.RasterXSize  # Set width
+            height = dataset.RasterYSize  # Set height
+            block = band.ReadAsArray(0, 0, width, height)  # Ottieni l'intero array di dati
 
-        # Get the name of the selected basin layer from the combobox
-        basin_layer_name = self.dlg.cmb_polibac.currentText()
+            # Verifica il tipo di dato
+            dtype = np.float32 if band.DataType == gdal.GDT_Float32 else np.float64
 
-        # Select the basin vector layer
-        basin_layer = next((layer for layer in QgsProject.instance().mapLayers().values() if layer.name() == basin_layer_name), None)
+            try:
+                data = block.astype(dtype)
+            except Exception as e:
+                self.dlg.progressBar.setValue(0)
+                QMessageBox.critical(self.dlg, self.tr("Errore"), self.tr(f"Errore durante la lettura del raster: {e}"))
+                return
 
-        self.dlg.progressBar.setValue(45)
+            stats = band.GetStatistics(True, True)
+            min_value, max_value = stats[0], stats[1]
+            
+            # Definisci extent come l'estensione completa del raster
+            extent = raster_layer.extent()
+
+        else:  # Current view
+            stats = provider.bandStatistics(band_index, QgsRasterBandStats.All)
+            if stats.elementCount == 0:
+                self.dlg.progressBar.setValue(0)
+                QMessageBox.critical(self.dlg, self.tr("Errore"), self.tr("Nessun dato disponibile nella banda selezionata."))
+                return
+
+            min_value, max_value = stats.minimumValue, stats.maximumValue
+            extent = raster_layer.extent()
+            width, height = raster_layer.width(), raster_layer.height()
+
+            # Get raster block for analysis extent
+            block = provider.block(band_index, extent, width, height)
+
+            # Verifica il tipo di dato del raster e utilizza il tipo appropriato per NumPy
+            dtype = np.float32 if raster_layer.band(band_index).dataType() == 5 else np.float64
+            data = np.frombuffer(block.data(), dtype=dtype)
         
-        # Check if the basin layer was found
-        if basin_layer is None:
-            self.iface.messageBar().pushMessage(self.tr("Errore"), self.tr("Nessun leyer per il bacino trovato con il nome selezionato"), level=3)
+        # Verifica che extent sia definito
+        if extent is None:
+            self.dlg.progressBar.setValue(0)
+            QMessageBox.critical(self.dlg, self.tr("Errore"), self.tr("L'estensione del raster non e' stata inizializzata correttamente."))
             return
 
-        # Check if the layer is a polygon
-        if basin_layer.geometryType() != QgsWkbTypes.PolygonGeometry:
-            self.iface.messageBar().pushMessage(self.tr("Errore"), self.tr("Il layer selezionato non e' un poligono."), level=3)
+        # Verifica che il numero di celle nel blocco corrisponda al numero atteso
+        expected_size = width * height
+        actual_size = data.size
+
+        if actual_size != expected_size:
+            if actual_size > expected_size:
+                # Trunca i dati se sono troppi
+                data = data[:expected_size]
+            else:
+                # Calcola il numero di righe mancanti
+                missing_rows = expected_size - actual_size
+
+                # Crea un array di padding con valori di NoData
+                no_data_value = provider.sourceNoDataValue(band_index)
+                padding = np.full((missing_rows,), no_data_value, dtype=dtype)
+
+                # Concatena i dati esistenti con il padding
+                data = np.concatenate((data, padding))
+
+        # Rimodella i dati correttamente
+        try:
+            data = data.reshape((height, width))
+        except ValueError as e:
+            self.dlg.progressBar.setValue(0)
+            QMessageBox.critical(self.dlg, self.tr("Errore"), self.tr(f"Errore di rimodellamento: {e}"))
             return
 
-        polygon_crs = basin_layer.crs()
+        # Progress bar
+        self.dlg.progressBar.setValue(40)
 
-        if polygon_crs.isGeographic():
-            # Show a warning and stop the calculation
-            QMessageBox.warning(
-                None,
-                self.tr("Attenzione: CRS Geografico"),
-                self.tr(
-                    "Il layer del bacino ha un CRS geografico (coordinate in gradi). "
-                    "Per il calcolo è necessario un sistema proiettato, come UTM."
-                )
-            )
-            return
+        # Mask NoData values
+        no_data_value = provider.sourceNoDataValue(band_index)
+        valid_data = np.ma.masked_equal(data, no_data_value)
 
-        
-        # Check if the CRS are the same (DEM layer and polygon)
-        if dem_crs != polygon_crs:
-            QMessageBox.warning(
-                None,
-                self.tr("CRS Non Compatibili"),
-                self.tr("Il CRS del layer DEM e' diverso da quello del layer poligono del bacino. "
-                "Assicurati che entrambi i layer abbiano lo stesso CRS."
-                )
-            )
-            return
-
-        # Get the geometry of the pelvis (assumed to be a single polygon)
-        feature = basin_layer.getFeature(0)  # Make sure you get a valid feature
-
-        if not feature.isValid():
-            self.iface.messageBar().pushMessage(self.tr("Errore"), self.tr("Caratteristica non valida nel layer del bacino."), level=3)
-            return
-
-        basin_geom = feature.geometry()
-
-        # Check if the basin geometry is valid
-        if basin_geom.isEmpty() or not basin_geom.isGeosValid():
-            self.iface.messageBar().pushMessage(self.tr("Errore"), self.tr("Geometria non valida o vuota per il layer del bacino"), level=3)
-            return
-
-        self.dlg.progressBar.setValue(50)
-        
-        # Create a mask using the pelvis polygon
+        # Create a mask using the polygon
         mask = np.zeros((height, width), dtype=bool)
 
-        self.dlg.progressBar.setValue(0)
+        # Total iterations
+        total_steps = height * width
+        completed_steps = 0
 
         for row in range(height):
             for col in range(width):
-                # Get the coordinate of the cell center
                 x = extent.xMinimum() + col * raster_layer.rasterUnitsPerPixelX()
                 y = extent.yMaximum() - row * raster_layer.rasterUnitsPerPixelY()
                 point = QgsPointXY(x, y)
 
-                # Check if the point is inside the basin polygon
                 if basin_geom.contains(QgsGeometry.fromPointXY(point)):
                     mask[row, col] = True
 
-            self.dlg.progressBar.setValue( int((row + 1) / height * 100))
+                # Increment the completed steps counter
+                completed_steps += 1
 
-        self.dlg.progressBar.setValue(55)
+                # Update the progress bar based on the completed steps
+                progress = int((completed_steps / total_steps) * 100)  # Percentage completed
+                self.dlg.progressBar.setValue(progress)
+
+           # Progress bar
+        self.dlg.progressBar.setValue(50)
+
+        # Apply the mask to the raster data
+        masked_data = np.ma.masked_where(~mask, valid_data)
+
+        # Calculate statistics
+        h_min = min_value  # masked_data.min()
+        h_max = max_value  # masked_data.max()
+        self.dlg.lineEdit_hmin.setText(f"{h_min:.2f}")
+        self.dlg.lineEdit_hmax.setText(f"{h_max:.2f}")
         
-        # Apply mask to data block
-        masked_data = data[mask]
+        # Dimensione della cella
+        cell_area = abs(raster_layer.rasterUnitsPerPixelX() * raster_layer.rasterUnitsPerPixelY())
+
+        # Dimensione totale dei dati
+        data_size = masked_data.shape[0]  # Numero di righe (o un asse rilevante per iterare)
+        chunk_size = 100  # Definire il numero di righe da processare in ogni iterazione
+        total_area = 0  # Area totale inizializzata a 0
+
+        # Inizializza la barra di progresso
+        self.dlg.progressBar.setValue(0)
+
+        # Iterazione sui dati in blocchi per calcolare progressivamente l'area
+        for start in range(0, data_size, chunk_size):
+            end = min(start + chunk_size, data_size)  # Limita l'intervallo all'interno del dataset
+            chunk = masked_data[start:end]  # Estrai il blocco corrente
+
+            # Calcola il numero di celle non mascherate nel blocco
+            total_area += np.count_nonzero(~chunk.mask) * cell_area
+
+            # Aggiorna la barra di progresso
+            progress = int(((start + chunk_size) / data_size) * 100)  # Percentuale completata
+            self.dlg.progressBar.setValue(progress)
+
+            # Aggiorna l'interfaccia utente
+            QCoreApplication.processEvents()
 
         self.dlg.progressBar.setValue(60)
-        
-        # Count valid and NoData cells
-        valid_cells = np.count_nonzero(~np.isnan(masked_data))
-        # no_data_cells = np.count_nonzero(np.isnan(masked_data))
 
-        self.dlg.progressBar.setValue(65)  
-        
-        # Calculate total area using valid cells
-        total_area = valid_cells * cell_area
         self.dlg.lineEdit_A.setText(f"{total_area:.2f}")
 
-        self.dlg.progressBar.setValue(70)  
-
-        # Retrieves the number of user-defined classes
+        # Calculate cumulative areas and intervals
         num_classes = self.dlg.spinBox_classi.value()
-
-        # Calculate elevation ranges
         intervals = np.linspace(h_min, h_max, num_classes + 1)
 
-        class_areas, cumulative_areas = [], []
+        # Calculate areas using the updated `calculate_area_in_range`
+        partial_areas, cumulative_areas = self.calculate_area_in_range(raster_layer, cell_area, band_index, basin_geom, dtype, index)
 
-        self.dlg.progressBar.setValue(75)  
-        
-        # Get the cumulative areas for each interval
-        cumulative_areas = self.calculate_area_in_range(raster_layer, cell_area, band_index, basin_geom)
+        # Modifica del TypeError: cumulative_areas convertito in lista mutabile.
+        cumulative_areas = list(cumulative_areas)
+        cumulative_areas[0] = total_area  # Ora supporta l'assegnazione
 
-        # Verify that the first value of the cumulative areas is equal to the total area
+        # Progress bar
+        self.dlg.progressBar.setValue(65)
+
+        # Ensure the first cumulative area equals the total area
         if total_area != cumulative_areas[0]:
-            cumulative_areas[0] = total_area  # Synchronize the value for security
+            cumulative_areas[0] = total_area
 
-        self.dlg.progressBar.setValue(80) 
+        # Calculate h_med
+        statistical_means = self.calculate_statistical_means(valid_data, intervals)
+        h_med = self.calculate_h_med(valid_data, intervals)
 
-        # There is no need to recalculate cumulative areas; we can derive them directly from cumulative_areas
-        class_areas = [cumulative_areas[i] - cumulative_areas[i + 1] for i in range(len(cumulative_areas) - 1)]
-        class_areas.append(cumulative_areas[-1])  # Add the last (smallest) area     
-
-        self.dlg.progressBar.setValue(85) 
-
-        # Populate the table with ranges, cumulative and total areas
-        self.populate_table(intervals, cumulative_areas, total_area, h_min, h_max)
-    
-        self.dlg.progressBar.setValue(90)  
-
-        # Hypsometric index
-        h_med = self.calculate_hypsometric_mean(cumulative_areas, intervals, total_area, h_min)
         self.dlg.lineEdit_hmed.setText(f"{h_med:.2f}")
-        hi = (h_med - h_min) / (h_max - h_min)
+
+        # Progress bar
+        self.dlg.progressBar.setValue(70)
+
+        # hypsometric
+        hi = self.calculate_hypsometric_mean(statistical_means, h_min, h_max)
+        
         self.dlg.lineEdit_HI.setText(f"{hi:.3f}")
 
-        self.dlg.progressBar.setValue(95)  
+        # Progress bar
+        self.dlg.progressBar.setValue(90)
 
-        # draw the graph
-        self.plot_graph(cumulative_areas, total_area, h_min, h_max, h_med)
+        # Correzione: utilizzo della funzione corretta per popolare la tabella
+        self.populate_table_with_corrected_values(intervals, partial_areas, cumulative_areas, total_area, statistical_means)
 
-        self.dlg.progressBar.setValue(100)  # Initialize the progress bar
-        self.dlg.progressBar.setValue(0)  
-        
+        # Progress bar
+        self.dlg.progressBar.setValue(100)
+
+        #plot
+        self.plot_graph(hi)
+
+        # Reset progress bar
+        self.dlg.progressBar.setValue(0)
 
     def create_contour_polygon(self, valid_mask, raster_layer):
         """Creates a boundary polygon based on valid pixels."""
@@ -579,7 +642,6 @@ class HypsometricCurve:
 
         return contour_polygon
 
-
     def add_polygon_to_map(self, polygon):
         """Adds the contour polygon to the map."""
         # Get the CRS of the current project
@@ -601,47 +663,40 @@ class HypsometricCurve:
         # Add layer to map
         QgsProject.instance().addMapLayer(layer)
 
-    def calculate_area_in_range(self, raster_layer, cell_area, band_index, basin_geom):
+    
+    def calculate_area_in_range(self, raster_layer, cell_area, band_index, basin_geom, dtype, index):
         """
-        Calculate the cumulative areas of pixels in elevation ranges within the basin polygon
-        in an optimized manner.
+        Calcola le aree parziali e cumulative dei pixel in intervalli di elevazione.
         """
-        # Get the raster layer data provider
-        provider = raster_layer.dataProvider()
+        if index==0: 
+            # Full raster analysis
+            file_path = raster_layer.dataProvider().dataSourceUri()
+            dataset = gdal.Open(file_path)
+            if not dataset:
+                QMessageBox.critical(self.dlg, self.tr("Errore"), self.tr("Impossibile aprire il file raster con GDAL."))
+                return None, None
 
-        # Extract raster extent
-        extent = raster_layer.extent()
+            band = dataset.GetRasterBand(band_index)
+            width, height = dataset.RasterXSize, dataset.RasterYSize
+            block = band.ReadAsArray(0, 0, width, height).astype(dtype)
 
-        # Get the width and height of the raster (number of rows and columns)
-        width = raster_layer.width()
-        height = raster_layer.height()
+            # Estensione completa del raster
+            extent = raster_layer.extent()
 
-        # Use dataProvider to get data block for bandwidth
-        rect = QgsRectangle(extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum())
-        block = provider.block(band_index, rect, width, height)
+        else:
+            # Analisi della vista corrente
+            provider = raster_layer.dataProvider()
+            extent = raster_layer.extent()
+            width, height = raster_layer.width(), raster_layer.height()
+            block = provider.block(band_index, extent, width, height)
+            block = np.frombuffer(block.data(), dtype=dtype).reshape((height, width))
 
-        # Converti i dati del blocco in un array numpy
-        data = np.frombuffer(block.data(), dtype=np.float32).reshape((height, width))
+        # Maschera i valori NoData
+        no_data_value = raster_layer.dataProvider().sourceNoDataValue(band_index)
+        data = np.ma.masked_equal(block, no_data_value)
 
-        # Handle NaN (NoData) values in data
-        data = np.nan_to_num(data, nan=np.nan)
-
-        # Get bandwidth statistics (min and max)
-        band_stats = provider.bandStatistics(band_index, QgsRasterBandStats.All)
-        h_min = band_stats.minimumValue
-        h_max = band_stats.maximumValue
-
-        # Get the number of classes from the spinBox_classes widget
-        num_classes = self.dlg.spinBox_classi.value()
-
-        # Calculate elevation ranges based on the number of classes
-        intervals = np.linspace(h_min, h_max, num_classes + 1)
-
-        # Create a global mask for the basin
+        # Maschera i pixel esterni alla geometria del bacino
         mask = np.zeros((height, width), dtype=bool)
-
-        self.dlg.progressBar.setValue(0) #barra di avanzamento
-
         for row in range(height):
             for col in range(width):
                 x = extent.xMinimum() + col * raster_layer.rasterUnitsPerPixelX()
@@ -649,179 +704,256 @@ class HypsometricCurve:
                 point = QgsPointXY(x, y)
                 if basin_geom.contains(QgsGeometry.fromPointXY(point)):
                     mask[row, col] = True
-        
-            self.dlg.progressBar.setValue( int((row + 1) / height * 100))
 
-        # Apply mask to raster to get only valid pixels inside basin
-        valid_data = data[mask]
+            # Aggiorna la progress bar
+            progress = int((row / height) * 100)
+            self.dlg.progressBar.setValue(progress)
 
-        # Initialize list for cumulative areas
-        area_cumulative_list = []
+        masked_data = np.ma.masked_where(~mask, data)
 
-        # Calculate the areas for each interval
-        cumulative_area = 0
+        # Calcola le statistiche
+        num_classes = self.dlg.spinBox_classi.value()
+        h_min, h_max = masked_data.min(), masked_data.max()
+        intervals = np.linspace(h_min, h_max, num_classes + 1)
 
-        self.dlg.progressBar.setValue(0) 
+        partial_areas = []
+        cumulative_areas = []
 
         for i in range(num_classes):
-            lower = intervals[i]
-            upper = intervals[i + 1]
+            lower, upper = intervals[i], intervals[i + 1]
+            interval_mask = (masked_data >= lower) & (masked_data < upper)
+            interval_area = np.sum(interval_mask) * cell_area
 
-            # Creates a mask for pixels within the current range
+            # Aggiungi l'area parziale
+            partial_areas.append(interval_area)
+
+        # Calcolo delle aree cumulative invertendo l'ordine
+        cumulative_sum = 0
+        for area in reversed(partial_areas):
+            cumulative_sum += area
+            cumulative_areas.insert(0, cumulative_sum)
+
+        return partial_areas, cumulative_areas
+
+
+
+
+
+    def calculate_statistical_means(self, valid_data, intervals):
+        """
+        Calcola il valore medio del raster per ciascun intervallo.
+        """
+        means = []
+
+        # Verifica che valid_data sia un array NumPy mascherato
+        if not isinstance(valid_data, np.ma.MaskedArray):
+            valid_data = np.ma.masked_array(valid_data)
+
+        if valid_data.count() == 0:
+            raise ValueError(self.tr("Non ci sono dati validi nel raster."))
+
+        num_intervals = len(intervals) - 1  # Numero di intervalli
+
+        for i in range(num_intervals):
+            lower, upper = intervals[i], intervals[i + 1]
+
+            # Crea una maschera booleana per selezionare i valori nell'intervallo specificato
             interval_mask = (valid_data >= lower) & (valid_data < upper)
 
-            # Calculate the area for pixels in the range
-            area = np.sum(interval_mask) * cell_area
+            # Applica la maschera per ottenere i valori nell'intervallo
+            interval_values = valid_data[interval_mask]
 
-            # Update cumulative area
-            cumulative_area += area
-            area_cumulative_list.append(cumulative_area)
+            # Calcola il valore medio dell'intervallo (se ci sono valori, altrimenti 0)
+            mean_value = interval_values.mean() if interval_values.size > 0 else 0
+            means.append(mean_value)
 
-            self.dlg.progressBar.setValue( int((i + 1) / num_classes * 100))
+            # Calcola e aggiorna il progresso della progress bar
+            progress = int((i + 1) / num_intervals * 100)  # Percentuale completata
+            self.dlg.progressBar.setValue(progress)
 
-        # Reverse the order of the list
-        area_cumulative_list = area_cumulative_list[::-1]
+            # Aggiorna l'interfaccia per riflettere il progresso
+            QCoreApplication.processEvents()
 
-        return area_cumulative_list
-
-        
-    def calculate_hypsometric_mean(self, cumulative_areas, intervals, total_area, h_min):
+        return means
+    
+    # Funzione per calcolare h_med richiamando i valori medi
+    def calculate_h_med(self, valid_data, intervals):
         """
-        Calculates the hypsometric mean (average height) as defined by the formula:
-        hmed = 1/A_tot * Integral(0, A_tot) h * dA
-
-        cumulative_areas: Array of cumulative areas
-        intervals: Elevation interval
-        total_area: Total area of the raster
-        h_min: Minimum height
+        Calcola il valore medio finale (h_med) utilizzando i valori medi degli intervalli.
         """
-        # Verify that the ranges are aligned correctly with the cumulative areas
-        if len(intervals) == len(cumulative_areas) + 1:
-            intervals = intervals[:-1]  # Remove the last interval if it is in excess
+        # Richiama la funzione calculate_statistical_means per ottenere i valori medi
+        means = self.calculate_statistical_means(valid_data, intervals)
+        # Calcola il valore medio finale (h_med) come la media dei valori medi
+        h_med = sum(means) / len(means) if means else 0
+        return h_med
 
-        # Initialize the weighted sum
-        weighted_sum = 0.0
+    def calculate_hypsometric_mean(self, statistical_means, h_min, h_max):
+        """
+        Calcola l'HI (Hypsometric Integral) usando i valori medi normalizzati per ciascun intervallo.
+        """
+        # Controlla se gli input sono validi
+        if not statistical_means or h_max == h_min:
+            return 0
 
-        # Calculate the weighted sum
+        # Normalizza i valori medi rispetto all'intervallo totale (h_min, h_max)
+        partial_hi = [
+            (mean_value - h_min) / (h_max - h_min)  # Normalizzazione rispetto a h_min e h_max
+            for mean_value in statistical_means
+        ]
+
+        # Calcola il valore medio di HI
+        hi_mean = np.mean(partial_hi) if partial_hi else 0
+        return hi_mean
+
+    def normalize_and_invert_areas(self, cumulative_areas, total_area):
+        """
+        Normalizza le aree cumulative rispetto all'area totale e inverte l'ordine.
+        """
+        normalized_areas = [area / total_area for area in cumulative_areas]
+        return normalized_areas[::-1]
+
+    def calculate_relative_heights(self, intervals):
+        """
+        Calcola i valori di altezza cumulativa e il rapporto con H totale.
+        """
+        h_values = []
         for i in range(len(intervals) - 1):
-            # Calculate the height for the interval (h = intervals[i] - h_min)
-            # h = intervals[i] - h_min
+            h_values.append(intervals[i + 1] - intervals[i])
+        cumulative_h = np.cumsum(h_values)
+        h_total = cumulative_h[-1]
+        h_ratios = [h / h_total for h in cumulative_h]
+        return h_ratios[::-1]
 
-            # Calculate the average height of the interval (average of the two extremes)
-            h_avg = ((intervals[i] + intervals[i + 1]) / 2) - h_min
+    def populate_table_with_corrected_values(self, intervals, partial_areas, cumulative_areas, total_area, valid_data):
+        """
+        Fill table with corrected hypsometric data including proper calculation of dA, h, and h_tot.
+        """
+        # Calcola i valori medi degli intervalli
+        statistical_means = self.calculate_statistical_means(valid_data, intervals)
 
-            # Calculate the area for the interval (dA = a_cum[i] - a_cum[i+1])
-            if i < len(intervals) - 2:
-                dA = cumulative_areas[i] - cumulative_areas[i + 1]
-            else:
-                dA = cumulative_areas[i]  # Ultimo intervallo, l'area e' l'area totale
+        # Inizializza la somma progressiva di h
+        h_sum = 0
+        h_tot = sum(intervals[1:] - intervals[:-1])  # Valore totale di h
 
-            # Make sure dA is not negative (if there is any error in the data)
-            if dA < 0:
-                dA = 0
-
-            # Weighted sum of height by area of interval
-            # weighted_sum += h * dA
-            weighted_sum += h_avg * dA
-
-        # The hypsometric mean is the weighted sum divided by the total area
-        if total_area > 0:
-            hmed = weighted_sum / total_area
-        else:
-            hmed = 0  # In case of total area equal to zero
-
-        return hmed
-
-
-    def populate_table(self, intervals, cumulative_areas, total_area, h_min, h_max):
-        """Fill table with hypsometric data."""
         self.dlg.tableWidget_tabella.setRowCount(len(intervals) - 1)
-        for i in range(len(intervals) - 1):
-            h = intervals[i] - h_min
-            h_h_tot = h / (h_max - h_min)
-            a_cum = cumulative_areas[i]
-            a_cum_norm = a_cum / total_area
-            d_a = a_cum - cumulative_areas[i + 1] if i < len(intervals) - 2 else a_cum
 
+        for i in range(len(intervals) - 1):
+            # Altezza dell'intervallo
+            h = intervals[i + 1] - intervals[i]
+            h_sum += h  # Aggiorna la somma cumulativa di h
+
+            # Altezza cumulativa normalizzata
+            h_h_tot = h_sum / h_tot if h_tot != 0 else 0
+
+            # Area singola dell'intervallo
+            a_area = partial_areas[i]
+
+            # Area cumulativa corrente
+            a_cum = cumulative_areas[i]
+
+            # Calcola il rapporto a_cum/A (area cumulativa / area totale)
+            a_cum_norm = a_cum / total_area
+
+            # Area dell'intervallo (dA)
+            if i < len(cumulative_areas) - 1:
+                d_a = a_cum - cumulative_areas[i + 1]
+            else:
+                d_a = a_cum  # Per l'ultimo intervallo
+            
+            # Valore medio statistico per l'intervallo
+            hmed = statistical_means[i]
+
+            # Popolamento delle celle della tabella
             self.dlg.tableWidget_tabella.setItem(i, 0, QTableWidgetItem(f"{intervals[i]:.2f}-{intervals[i + 1]:.2f}"))
-            self.dlg.tableWidget_tabella.setItem(i, 1, QTableWidgetItem(f"{a_cum:.2f}"))
-            self.dlg.tableWidget_tabella.setItem(i, 2, QTableWidgetItem(f"{a_cum_norm:.4f}"))
-            self.dlg.tableWidget_tabella.setItem(i, 3, QTableWidgetItem(f"{d_a:.2f}"))
-            self.dlg.tableWidget_tabella.setItem(i, 4, QTableWidgetItem(f"{h:.2f}"))
-            self.dlg.tableWidget_tabella.setItem(i, 5, QTableWidgetItem(f"{h_h_tot:.4f}"))
-        
-        # Align columns after writing data into table
+            self.dlg.tableWidget_tabella.setItem(i, 1, QTableWidgetItem(f"{a_area:.2f}"))       # dA
+            self.dlg.tableWidget_tabella.setItem(i, 2, QTableWidgetItem(f"{a_cum:.2f}"))        # Acum
+            self.dlg.tableWidget_tabella.setItem(i, 3, QTableWidgetItem(f"{a_cum_norm:.4f}"))   # A/Atot
+            self.dlg.tableWidget_tabella.setItem(i, 4, QTableWidgetItem(f"{h_sum:.2f}"))        # h cumulativo
+            self.dlg.tableWidget_tabella.setItem(i, 5, QTableWidgetItem(f"{hmed:.2f}"))         # hmed
+            self.dlg.tableWidget_tabella.setItem(i, 6, QTableWidgetItem(f"{h_h_tot:.4f}"))      # h/H
+
+        # Allineamento delle colonne dopo aver scritto i dati nella tabella
         self.align_columns()
 
-        # Resize columns 3 and 6
+        # Ridimensionamento delle colonne
         self.resize_columns()
-  
-    def plot_graph(self, cumulative_areas, total_area, h_min, h_max, hypsometric_mean):
+
+    def plot_graph(self, hi): 
         """Plot hypsometric curve."""
-        # Normalize cumulative areas to total area
-        a_norm = [a / total_area for a in cumulative_areas]
+        # Estrai i valori di a_norm e h_norm dalle colonne 3 e 6 della tabella
+        a_norm = []
+        h_norm = []
+        row_count = self.dlg.tableWidget_tabella.rowCount()
 
-        # Calculate the normalized intervals from h_min to h_max
-        h_norm = [(interval - h_min) / (h_max - h_min) for interval in np.linspace(h_min, h_max, len(cumulative_areas))]
+        for i in range(row_count):
+            # Ottieni i valori dalla colonna 3 (a_norm) e 6 (h_norm) della tabella
+            a_norm_value = float(self.dlg.tableWidget_tabella.item(i, 3).text())
+            h_norm_value = float(self.dlg.tableWidget_tabella.item(i, 6).text())
+            
+            a_norm.append(a_norm_value)
+            h_norm.append(h_norm_value)
 
-         # Create a new figure with the specified size (5.21 x 3.51 inches corresponding to 521x351 pixels)
+        # Crea una nuova figura con la dimensione specificata (5.21 x 3.51 pollici corrispondente a 521x351 pixel)
         fig, ax = plt.subplots(figsize=(5.21, 3.51))
-        
-         # Plot the hypsometric curve
-        ax.plot(a_norm, h_norm, color=self.selected_color.name(), label= self.tr("Curva ipsometrica"))
-        ax.set_xlabel(self.tr("Area relativa (a/A)"), labelpad=15, fontweight="bold")
-        ax.set_ylabel(self.tr("Altezza relativa (h/H)"), labelpad=10, fontweight="bold")
-        ax.set_title(self.tr("Grafico curva ipsometrica"), pad=20, fontweight="bold")
+
+        # Traccia la curva ipsometrica usando a_norm e h_norm
+        ax.plot(a_norm, h_norm, color=self.selected_color.name(), label=self.tr("Curva ipsometrica"))
+        ax.set_xlabel("a/A", labelpad=15, fontweight="bold")
+        ax.set_ylabel("h/H", labelpad=10, fontweight="bold")
+        ax.set_title(self.tr("Curva ipsometrica"), pad=20, fontweight="bold")
         ax.legend()
-        ax.grid(True)  # Show the grid
-        
-        # Set the x and y axis limits from 0 to 1
+        ax.grid(True)  # Mostra la griglia
+
+        # Imposta i limiti degli assi da 0 a 1
         ax.set_xlim(0, 1.1)
-        ax.set_ylim(0, 1.1)
+        ax.set_ylim(0, 1.1)              
 
-        # Show HAI point on curve if checkbox is selected
+        # Inizializza hi_projection come None per verificare se viene calcolato successivamente
+        hi_projection = None
+
+        # Mostra il punto HI sulla curva se la checkbox e' selezionata
         if self.dlg.checkBox_HI.isChecked():
-            # Calculate normalized HI
-            hi_normalized = hypsometric_mean / (h_max - h_min)  # h/H
-
-            # Find the closest point to the hypsometric curve
+            # Trova il punto piu' vicino sulla curva ipsometrica
             for i in range(len(h_norm) - 1):
-                if h_norm[i] <= hi_normalized <= h_norm[i + 1]:
-                    # Linear interpolation to find the exact value of a/A
+                if h_norm[i] <= hi <= h_norm[i + 1]:
+                    # Interpolazione lineare per trovare il valore esatto di a/A
                     slope = (a_norm[i + 1] - a_norm[i]) / (h_norm[i + 1] - h_norm[i])
-                    hi_projection = a_norm[i] + slope * (hi_normalized - h_norm[i])  # a/A
-                    break
+                    hi_projection = a_norm[i] + slope * (hi - h_norm[i])  # a/A
+                    break  # Esci dal ciclo una volta che la proiezione e' trovata
             
-            # Add dashed lines projected onto the axes
-            ax.axhline(hi_normalized, color='green', linestyle='--', linewidth=0.8)
-            
-            # Draw a small circle on the point HI on the curve
-            ax.plot([hi_projection], [hi_normalized], 'o', color='red', label="HI")
+            # Verifica se la proiezione di HI e' stata calcolata correttamente
+            if hi_projection is not None:
+                # Aggiungi linee tratteggiate proiettate sugli assi
+                ax.axhline(hi, color='green', linestyle='--', linewidth=0.8)
 
-            # Add the HI value as a label
-            hi_value = float(self.dlg.lineEdit_HI.text())
+                # Disegna un piccolo cerchio sul punto HI sulla curva
+                ax.plot([hi_projection], [hi], 'o', color='red', label="HI")
 
-            ax.text(
-                hi_projection + 0.02,  # Position x slightly to the right of the point
-                hi_normalized + 0.02,  # Position y slightly above the point
-                f"HI = {hi_value:.3f}",  # Text with HI value
-                color="black",
-                fontsize=9,
-                fontweight='bold'       # Adds bold to text
-            )          
-
-        # Adjust layout to ensure titles and labels fit within the figure
+                # Aggiungi il valore di HI come etichetta
+                ax.text(
+                    hi_projection + 0.02,  # Posiziona il testo leggermente a destra del punto
+                    hi + 0.02,  # Posiziona il testo leggermente sopra il punto
+                    f"HI = {hi:.3f}",  # Testo con il valore di HI
+                    color="black",
+                    fontsize=9,
+                    fontweight='bold'  # Testo in grassetto
+                )
+            else:
+                # Gestisci il caso in cui la proiezione di HI non sia stata trovata
+                print(self.tr("Proiezione di HI non trovata."))
+        
+        # Adatta il layout per garantire che titoli e etichette siano visibili
         plt.tight_layout()
 
-        # Create the FigureCanvas to display the plot in the graphics view
+        # Crea il canvas per visualizzare il grafico nel QGraphicsView
         canvas = FigureCanvas(fig)
-        canvas.setFixedSize(521, 351)  # Ensure the canvas fits the graphics view size
+        canvas.setFixedSize(521, 351)  # Assicurati che il canvas si adatti alle dimensioni della vista grafica
 
-        # Clear the previous content and add the new plot to the QGraphicsView
+        # Pulisce la scena precedente e aggiunge il nuovo grafico alla QGraphicsView
         self.dlg.graphicsView_grafico.setScene(QGraphicsScene())
         self.dlg.graphicsView_grafico.scene().addWidget(canvas)
 
-        # Draw the canvas
+        # Disegna il canvas
         canvas.draw()
 
     def initialize_graph(self):
@@ -834,9 +966,9 @@ class HypsometricCurve:
         ax.set_ylim(0, 1.1)
         
         # Set labels for the axes
-        ax.set_xlabel(self.tr("Area relativa (a/A)"), labelpad=15, fontweight="bold")
-        ax.set_ylabel(self.tr("Altezza relativa (h/H)"), labelpad=10, fontweight="bold")
-        ax.set_title(self.tr("Grafico curva ipsometrica"), pad=20, fontweight="bold")
+        ax.set_xlabel("a/A", labelpad=15, fontweight="bold")
+        ax.set_ylabel("h/H", labelpad=10, fontweight="bold")
+        ax.set_title(self.tr("Curva ipsometrica"), pad=20, fontweight="bold")
         
         # Add a grid
         ax.grid(True)
@@ -870,17 +1002,17 @@ class HypsometricCurve:
         h_norm = []
         
         for row in range(self.dlg.tableWidget_tabella.rowCount()):
-            a_norm.append(float(self.dlg.tableWidget_tabella.item(row, 2).text()))   # a/A
-            h_norm.append(float(self.dlg.tableWidget_tabella.item(row, 5).text()))   # h/H
+            a_norm.append(float(self.dlg.tableWidget_tabella.item(row, 3).text()))   # a/A
+            h_norm.append(float(self.dlg.tableWidget_tabella.item(row, 6).text()))   # h/H
 
         # Create a new figure with the specified dimensions (5.21 x 3.51 inches)
         fig, ax = plt.subplots(figsize=(5.21, 3.51))
         
         # Draw the hypsometric curve with the selected color
         ax.plot(a_norm, h_norm, color=self.selected_color.name(), label=self.tr("Curva ipsometrica"))
-        ax.set_xlabel(self.tr("Area relativa (a/A)"), labelpad=15, fontweight="bold")
-        ax.set_ylabel(self.tr("Altezza relativa (h/H)"), labelpad=10, fontweight="bold")
-        ax.set_title(self.tr("Grafico curva ipsometrica"), pad=20, fontweight="bold")
+        ax.set_xlabel("a/A", labelpad=15, fontweight="bold")
+        ax.set_ylabel("h/H", labelpad=10, fontweight="bold")
+        ax.set_title(self.tr("Curva ipsometrica"), pad=20, fontweight="bold")
         ax.legend()
         ax.grid(True)  # Show grid
         
@@ -929,7 +1061,6 @@ class HypsometricCurve:
         # Draw the canvas
         canvas.draw()
 
-    
     def reset_fields(self):
         """Reset all input and output fields."""
 
@@ -970,11 +1101,10 @@ class HypsometricCurve:
 
         # Reset the tabel
         self.dlg.tableWidget_tabella.clearContents()  # Svuota il contenuto della tabella
-        self.dlg.tableWidget_tabella.setRowCount(0)   # Elimina tutte le righe
+        self.dlg.tableWidget_tabella.setRowCount(0)   # Elimina tutte le righe     
 
     def save_table(self):
         """Save table data to a CSV file."""
-
         table = self.dlg.tableWidget_tabella
 
         # Check if the table contains any data
@@ -982,7 +1112,7 @@ class HypsometricCurve:
             QtWidgets.QMessageBox.warning(self.dlg, self.tr("Attenzione"), self.tr("La tabella e' vuota. Esegui il calcolo prima di salvare."))
             return
 
-        filename, _ = QtWidgets.QFileDialog.getSaveFileName(self.dlg, self.tr("Salva la Tabella"), "", "CSV Files (*.csv);;Text Files (*.txt)")
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(self.dlg, self.tr("Salva la Tabella"), "", self.tr("CSV Files (*.csv);;Text Files (*.txt)"))
         
         # Stop if user pressed "Cancel"
         if not filename:
@@ -995,7 +1125,7 @@ class HypsometricCurve:
             try:
                 with open(filename, 'w', newline='', encoding='utf-8') as f:
                     writer = csv.writer(f, delimiter=';')
-                    writer.writerow([self.tr("Intervalli"), "a_cum", "a_cum/A", "dA", "h", "h/H"])
+                    writer.writerow([self.tr("Intervalli"), "dA", "Acum", "Acum/Atot", "h", "hmed", "h/H"])
                     
                     for row in range(table.rowCount()):
                         row_data = []
@@ -1021,10 +1151,8 @@ class HypsometricCurve:
                 # If there is an error while saving, it displays an error message
                 QtWidgets.QMessageBox.critical(self.dlg, self.tr("Errore"), self.tr(f"Si e' verificato un errore durante il salvataggio: {str(e)}"))
 
-
     def save_graph(self):
         """Save graph to an image file."""
-
         table = self.dlg.tableWidget_tabella
 
         # Check if the table contains any data
@@ -1032,7 +1160,7 @@ class HypsometricCurve:
             QtWidgets.QMessageBox.warning(self.dlg, self.tr("Attenzione"), self.tr("Nessun dato presente sul grafico da salvare!"))
             return
 
-        path, _ = QFileDialog.getSaveFileName(None, self.tr("Salva grafico"), "", "Images (*.png *.jpg)")
+        path, _ = QFileDialog.getSaveFileName(None, self.tr("Salva grafico"), "", self.tr("Images (*.png *.jpg)"))
 
         # Stop if user pressed "Cancel"
         if not path:
@@ -1049,7 +1177,6 @@ class HypsometricCurve:
                 # Show an error message if there is a problem while saving
                 QMessageBox.critical(None, self.tr("Errore"), self.tr(f"Si e' verificato un errore durante il salvataggio del grafico: {str(e)}"))
     
-
     def align_columns(self):
         """Align table columns as required."""
         table = self.dlg.tableWidget_tabella
@@ -1067,22 +1194,74 @@ class HypsometricCurve:
                         item.setTextAlignment(Qt.AlignRight)
     
     def resize_columns(self):
-        """Resize columns 3 and 6 of the table to a width of 70."""
+        """Resize columns."""
         table = self.dlg.tableWidget_tabella
-        table.setColumnWidth(2, 60)  # Column 3 has index 2 (indexes start at 0)
-        table.setColumnWidth(3, 90)
-        table.setColumnWidth(4, 70)
-        table.setColumnWidth(5, 60)  # Column 6 has index 5
+        table.setColumnWidth(0, 110)    # Intervalli
+        table.setColumnWidth(1, 80)     # dA
+        table.setColumnWidth(2, 100)    # a_cum
+        table.setColumnWidth(3, 60)     # a/A
+        table.setColumnWidth(4, 60)     # h
+        table.setColumnWidth(5, 60)     # hmed
+        table.setColumnWidth(6, 60)     # h/H
     
     def handle_close(self):
-        """
-        Clears the UI and closes the window.
-        """
-        # Clear your memory
-        self.clear_memory()
+        """Clears the UI and closes the window."""
+        try:
+            # Check if the table contains non-empty data
+            table_widget = self.dlg.tableWidget_tabella
+            has_non_empty_rows = any(
+                table_widget.item(row, col) is not None and table_widget.item(row, col).text().strip() != ""
+                for row in range(table_widget.rowCount())
+                for col in range(table_widget.columnCount())
+            )
 
-        # Reset the graph to the initial state with axes from 0 to 1 and grid
-        self.initialize_graph()
+            # If the table is empty, close the window directly
+            if not has_non_empty_rows:
+                self.dlg.close()
+                return
 
-        # Close the window
-        self.dlg.close()  
+            # Show a confirmation message
+            reply = QMessageBox.question(
+                self.dlg,
+                self.tr('Confirma'),
+                self.tr("Sei sicuro di voler cancellare i dati?"),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+
+            # If the user chooses 'No', exit the function without doing anything
+            if reply == QMessageBox.No:
+                return
+            
+            # Clear the tableWidget_value
+            self.dlg.tableWidget_tabella.clearContents()
+            self.dlg.tableWidget_tabella.setRowCount(0)
+
+            # Release the graphic scene if it exists
+            if hasattr(self, 'canvas') and self.canvas:
+                self.canvas.close()
+                self.canvas.deleteLater()
+                self.canvas = None
+
+            if self.dlg.graphicsView_grafico.scene():
+                self.dlg.graphicsView_grafico.scene().clear()
+                self.dlg.graphicsView_grafico.setScene(None)
+
+            # Reset progress bar
+            self.dlg.progressBar.setValue(0)
+
+            # Reset lineEdit
+            self.dlg.lineEdit_hmin.clear()
+            self.dlg.lineEdit_hmax.clear()
+            self.dlg.lineEdit_A.clear()
+            self.dlg.lineEdit_hmed.clear()
+            self.dlg.lineEdit_HI.clear()
+
+            # Clear your memory
+            self.clear_memory()
+
+            # Close the dialogue
+            self.dlg.close()         
+
+        except Exception as e:
+            QMessageBox.critical(self.dlg, self.tr("Errore"), self.tr(f"Errore durante la chiusura: {str(e)}"))
