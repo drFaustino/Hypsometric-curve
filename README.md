@@ -75,7 +75,7 @@ Added files to display the interface in Italian and English languages.
 
 ## Update - version 0.5
 
-In the improved version, a new calculation mode for hmed and HI has been introduced. Additional controls have been added on the raster layer and new fields have been implemented in the table to display additional information. Float32 and Float32 data are now supported. Additionally, the interface has been remodeled to accommodate the new elements inserted. To optimize the calculations, it is advisable to clip the DEM layer based on the shape of the vector layer that outlines the drainage basin.
+In the improved version, a new calculation mode for hmed and HI has been introduced. Additional controls have been added on the raster layer and new fields have been implemented in the table to display additional information. Float32 and Float64 data are now supported. Additionally, the interface has been remodeled to accommodate the new elements inserted. To optimize the calculations, it is advisable to clip the DEM layer based on the shape of the vector layer that outlines the drainage basin.
 
 ![img_5a](https://github.com/user-attachments/assets/5b54ee8b-a67b-4ac5-95b8-ae29387ae621)
 
