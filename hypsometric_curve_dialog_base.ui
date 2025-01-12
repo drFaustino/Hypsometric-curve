@@ -114,7 +114,7 @@
     </property>
     <item>
      <property name="text">
-      <string>Raster completo</string>
+      <string>Raster intero</string>
      </property>
     </item>
     <item>
@@ -512,7 +512,7 @@ p, li { white-space: pre-wrap; }
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Per utilizzare al meglio questo strumento, è fondamentale che il modello digitale del terreno (DEM) sia adattato alla forma del layer vettoriale che rappresenta il confine del bacino idrografico. Questo processo consente di ottimizzare le operazioni di calcolo in modo significativo. Inoltre, è importante che il sistema di riferimento sia proiettato e che entrambi i layer, sia il DEM che il poligono, siano allineati sullo stesso sistema di proiezione.&lt;/p&gt;
 &lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;br /&gt;&lt;/p&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Descrizione&lt;/span&gt;:&lt;/p&gt;
-&lt;p align=&quot;justify&quot; style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Layer DEM&lt;/span&gt;: Raster del Modello Digitale di Elevazione del terreno (DEM), con un Sistema di Riferimento Spaziale (CRS) &lt;span style=&quot; color:#000000;&quot;&gt;proiettato. &lt;/span&gt;&lt;span style=&quot; font-weight:600; color:#000000;&quot;&gt;Estensione&lt;/span&gt;&lt;span style=&quot; color:#000000;&quot;&gt;: Indica la modalità di calcolo dei valori statistici per i valori minimi e massimi di elevazione. &lt;/span&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Banda&lt;/span&gt;: Indica la banda del raster DEM che contiene le informazioni rilevanti per il calcolo dell'altitudine e delle aree. &lt;span style=&quot; font-weight:600;&quot;&gt;Limite di bacino&lt;/span&gt;: Layer vettoriale contenete il poligono dell'area di bacino idrografico. &lt;span style=&quot; font-weight:600;&quot;&gt;Nr. intervalli&lt;/span&gt;: Numero di classi di ampiezza ugale in cui suddividere gli intervalli di quota all'interno del bacino idrografico. Questo numero è variabile da 10 a 500. Ad ogni modo il numero consigliato è tra i 250-300, poiché da questo punto in poi il valore di hmed si stabilizza notevolmente, con variazioni minime. &lt;span style=&quot; font-weight:600;&quot;&gt;hmin&lt;/span&gt;: Valore per la quota minima del DEM all'interno dell'area del bacino idrografico. &lt;span style=&quot; font-weight:600;&quot;&gt;hmax&lt;/span&gt;: Valore per  la quota massima del DEM all'interno dell'area del bacino idrografico.&lt;/p&gt;
+&lt;p align=&quot;justify&quot; style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Layer DEM&lt;/span&gt;: Raster del Modello Digitale di Elevazione del terreno (DEM), con un Sistema di Riferimento Spaziale (CRS) &lt;span style=&quot; color:#000000;&quot;&gt;proiettato. &lt;/span&gt;&lt;span style=&quot; font-weight:600; color:#000000;&quot;&gt;Estensione&lt;/span&gt;&lt;span style=&quot; color:#000000;&quot;&gt;: Indica la modalità di calcolo dei valori statistici per i valori minimi e massimi di elevazione. &lt;/span&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Banda&lt;/span&gt;: Indica la banda del raster DEM che contiene le informazioni rilevanti per il calcolo dell'altitudine e delle aree. &lt;span style=&quot; font-weight:600;&quot;&gt;Limite di bacino&lt;/span&gt;: Layer vettoriale contenete il poligono dell'area di bacino idrografico. &lt;span style=&quot; font-weight:600;&quot;&gt;Nr. intervalli&lt;/span&gt;: Numero di classi di ampiezza uguale in cui suddividere gli intervalli di quota all'interno del bacino idrografico. Questo numero è variabile da 10 a 500. Ad ogni modo il numero consigliato è tra i 250-300, poiché da questo punto in poi il valore di hmed si stabilizza notevolmente, con variazioni minime. &lt;span style=&quot; font-weight:600;&quot;&gt;hmin&lt;/span&gt;: Valore per la quota minima del DEM all'interno dell'area del bacino idrografico. &lt;span style=&quot; font-weight:600;&quot;&gt;hmax&lt;/span&gt;: Valore per  la quota massima del DEM all'interno dell'area del bacino idrografico.&lt;/p&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;hmed&lt;/span&gt;: Valore per la quota media del bacino idrografico, calcolata come un'integrale sull'area del bacino stesso. &lt;span style=&quot; font-weight:600;&quot;&gt;A&lt;/span&gt;: Area totale del bacino idrografico, ossia la superficie complessiva delimitata dal poligono del bacino. &lt;span style=&quot; font-weight:600;&quot;&gt;HI&lt;/span&gt;: Valore dell'integrale ipsometrico. Le curve convesse caratterizzano regioni giovani leggermente erose (HI &amp;gt; 0.6), quelle a forma di 'S' caratterizzano regioni moderatamente erose (0.35 &amp;lt;= HI &amp;lt;= 0.6), mentre quelle concave indicano regioni vecchie e altamente erose (HI &amp;lt; 0.35). &lt;span style=&quot; font-weight:600;&quot;&gt;dA&lt;/span&gt;: aree interne agli intervalli definiti. &lt;span style=&quot; font-weight:600;&quot;&gt;A cum&lt;/span&gt;: Aree cumulative. &lt;span style=&quot; font-weight:600;&quot;&gt;A/Atot&lt;/span&gt;: Normalizzazione delle aree cumulative. &lt;span style=&quot; font-weight:600;&quot;&gt;h&lt;/span&gt;: intervalli di altezza.&lt;span style=&quot; font-weight:600;&quot;&gt; hmed&lt;/span&gt;: altezza media del bacino idrografico. &lt;span style=&quot; font-weight:600;&quot;&gt;h/H&lt;/span&gt;: Normalizzazione delle altezze.&lt;/p&gt;
 &lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
      </property>
@@ -628,7 +628,7 @@ p, li { white-space: pre-wrap; }
      </rect>
     </property>
     <property name="text">
-     <string>Colore</string>
+     <string>Scegli un colore</string>
     </property>
    </widget>
    <widget class="QLabel" name="lbl_color">
@@ -666,7 +666,7 @@ p, li { white-space: pre-wrap; }
      </rect>
     </property>
     <property name="text">
-     <string>Visualizza HI sul grafico</string>
+     <string>Mostra HI sul grafico</string>
     </property>
     <property name="checked">
      <bool>true</bool>
@@ -760,7 +760,7 @@ p, li { white-space: pre-wrap; }
      </rect>
     </property>
     <property name="text">
-     <string>Slava tabella</string>
+     <string>Salva tabella</string>
     </property>
    </widget>
    <widget class="QComboBox" name="cmb_decimal">

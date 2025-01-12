@@ -1223,7 +1223,7 @@ class HypsometricCurve:
             # Show a confirmation message
             reply = QMessageBox.question(
                 self.dlg,
-                self.tr('Confirma'),
+                self.tr('Conferma'),
                 self.tr("Sei sicuro di voler cancellare i dati?"),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No
