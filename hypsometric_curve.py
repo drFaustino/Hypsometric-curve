@@ -100,11 +100,18 @@ class HypsometricCurve:
 
     def show_message(self, title, message):
         """Show a dialog message to inform the user."""
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Information)  # You can change the icon type (e.g. Critical for errors)
-        msg.setText(message)
-        msg.setWindowTitle(title)
-        msg.exec_()
+        # Initialize a dictionary to track shown messages
+        if not hasattr(self, '_shown_messages'):
+            self._shown_messages = set()
+
+        # Check if the message has already been shown
+        if message not in self._shown_messages:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Information)
+            msg.setText(message)
+            msg.setWindowTitle(title)
+            msg.exec_()
+            self._shown_messages.add(message)  # Aggiunge il messaggio gia' mostrato
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -180,15 +187,39 @@ class HypsometricCurve:
         # Only create GUI ONCE in callback, so that it will only load when the plugin is started
         if self.first_start == True:
             self.first_start = False
+        
+        if not hasattr(self, 'dlg') or self.dlg is None:
             self.dlg = HypsometricCurveDialog()
 
+            # Collegamenti dei segnali (fatti solo la prima volta)
+            self.dlg.pushButton_calc.clicked.connect(self.calculate_hypsometric_curve)
+            self.dlg.pushButton_canc.clicked.connect(self.reset_fields)
+            self.dlg.pushButton_salva_tab.clicked.connect(self.save_table)
+            self.dlg.pushButton_salva_graph.clicked.connect(self.save_graph)
+            self.dlg.pushButton_refresh.clicked.connect(self.pushButton_refresh)
+            self.dlg.pushButton_close.clicked.connect(self.handle_close)
+            
+            # Connect the color select button
+            self.dlg.pushButton_color.clicked.connect(self.select_color)
+            
+            # min and max class intervals
+            self.dlg.spinBox_classi.setMinimum(10)
+            self.dlg.spinBox_classi.setMaximum(500)
+
+            # Suggested class value
+            self.dlg.spinBox_classi.setValue(255)
+        
+            # Set the first tab as active
+            self.dlg.tabWidget.setCurrentIndex(0)
+
+            # Default color
+            self.selected_color = QColor("blue")
+
+        #progress bar
         self.dlg.progressBar.setValue(0)
 
         # Reset fields at every run
-        self.reset_fields()
-
-        # Initialize progress bar
-        self.dlg.progressBar.setValue(0)
+        self.reset_fields() 
 
         # Populate DEM combobox
         self.dlg.cmb_dem.clear()
@@ -212,30 +243,7 @@ class HypsometricCurve:
         if not polygon_layers:
             QMessageBox.warning(self.dlg, self.tr("Errore"), self.tr("Nessun layer poligonale disponibile."))
             return
-        self.dlg.cmb_polibac.addItems(polygon_layers)
-
-        self.dlg.pushButton_calc.clicked.connect(self.calculate_hypsometric_curve)
-        self.dlg.pushButton_canc.clicked.connect(self.reset_fields)
-        self.dlg.pushButton_salva_tab.clicked.connect(self.save_table)
-        self.dlg.pushButton_salva_graph.clicked.connect(self.save_graph)
-        self.dlg.pushButton_refresh.clicked.connect(self.pushButton_refresh)
-        self.dlg.pushButton_close.clicked.connect(self.handle_close)
-
-        # min and max class intervals
-        self.dlg.spinBox_classi.setMinimum(10)
-        self.dlg.spinBox_classi.setMaximum(500)
-
-        # Suggested class value
-        self.dlg.spinBox_classi.setValue(255)
-      
-        # Set the first tab as active
-        self.dlg.tabWidget.setCurrentIndex(0)
-
-        # Connect the color select button
-        self.dlg.pushButton_color.clicked.connect(self.select_color)
-
-        # Default color
-        self.selected_color = QColor("blue")
+        self.dlg.cmb_polibac.addItems(polygon_layers)       
 
         # Initialize the graph with the default view (axes 0 to 1)
         self.initialize_graph()
@@ -258,21 +266,30 @@ class HypsometricCurve:
             pass
 
     def select_color(self):
-        # Usa il dialogo per selezionare un colore
-        color = QColorDialog.getColor()
+        """Open the color selection dialog and apply the selected color."""
+        # Controlla se la finestra di dialogo e' gia' aperta
+        if hasattr(self, '_color_dialog_open') and self._color_dialog_open:
+            return  # Previeni l'apertura multipla
 
-        # Check if a color has been selected
-        if color.isValid():
-            # Apply the selected color to the background of lbl_color
-            self.dlg.lbl_color.setStyleSheet(f"background-color: {color.name()}; border: 1px solid black;")
-            
-            # Save the selected color
-            self.selected_color = color
+        # Imposta il flag di apertura
+        self._color_dialog_open = True
 
-            # Check if the table is not empty
-            if self.dlg.tableWidget_tabella.rowCount() > 0:
-                # After selecting the color, update the chart
-                self.update_graph_color()
+        try:
+            # Usa il dialogo per selezionare un colore
+            color = QColorDialog.getColor()
+
+            # Controlla se un colore e' stato selezionato
+            if color.isValid():
+                # Applica il colore selezionato
+                self.dlg.lbl_color.setStyleSheet(f"background-color: {color.name()}; border: 1px solid black;")
+                self.selected_color = color
+
+                # Aggiorna il grafico con il nuovo colore se necessario
+                if self.dlg.tableWidget_tabella.rowCount() > 0:
+                    self.update_graph_color()
+        finally:
+            # Reset del flag dopo la chiusura della finestra
+            self._color_dialog_open = False
 
     def pushButton_refresh(self):
         # Check if the table is not empty
@@ -311,15 +328,7 @@ class HypsometricCurve:
             self.dlg.lbl_hmax.setText("grad")
             self.dlg.lbl_hmed.setText("grad")
             self.dlg.lbl_A.setText("---")
-
-    def get_band_count(self):
-        """Get the number of bands in the selected raster layer."""
-        raster_name = self.dlg.cmb_dem.currentText()
-        raster_layer = next((layer for layer in QgsProject.instance().mapLayers().values() if layer.name() == raster_name), None)
-        if raster_layer:
-            return raster_layer.bandCount()
-        return 0
-
+  
     #nuovo
     def calculate_hypsometric_curve(self):
         """Perform hypsometric calculations."""
@@ -425,7 +434,22 @@ class HypsometricCurve:
             block = band.ReadAsArray(0, 0, width, height)  # Ottieni l'intero array di dati
 
             # Verifica il tipo di dato
-            dtype = np.float32 if band.DataType == gdal.GDT_Float32 else np.float64
+            # dtype = np.float32 if band.DataType == gdal.GDT_Float32 else np.float64
+
+            # Mappa dei tipi GDAL a NumPy
+            gdal_to_numpy_dtype = {
+                gdal.GDT_Byte: np.uint8,
+                gdal.GDT_UInt16: np.uint16,
+                gdal.GDT_Int16: np.int16,
+                gdal.GDT_UInt32: np.uint32,
+                gdal.GDT_Int32: np.int32,
+                gdal.GDT_Float32: np.float32,
+                gdal.GDT_Float64: np.float64
+            }
+
+            # Verifica il tipo di dato GDAL e mappa al tipo NumPy
+            gdal_dtype = band.DataType
+            dtype = gdal_to_numpy_dtype.get(gdal_dtype, np.float64)  # Default a np.float64 se non riconosciuto
 
             try:
                 data = block.astype(dtype)
@@ -455,7 +479,28 @@ class HypsometricCurve:
             block = provider.block(band_index, extent, width, height)
 
             # Verifica il tipo di dato del raster e utilizza il tipo appropriato per NumPy
-            dtype = np.float32 if raster_layer.band(band_index).dataType() == 5 else np.float64
+            #try:
+                #dtype = np.float32 if provider.dataType(band_index - 1) == 5 else np.float64
+            #except Exception as e:
+                #QMessageBox.critical(self.dlg, self.tr("Errore"), self.tr(f"Errore nell'ottenere il tipo di dati: {str(e)}"))
+                #return
+            
+            # Verifica il tipo di dato del raster e utilizza il tipo appropriato per NumPy
+            try:
+                provider_dtype_map = {
+                    1: np.uint8,
+                    2: np.uint16,
+                    3: np.int16,
+                    4: np.uint32,
+                    5: np.float32,
+                    6: np.float64,
+                }
+                gdal_provider_type = provider.dataType(band_index - 1)
+                dtype = provider_dtype_map.get(gdal_provider_type, np.float64)  # Default a np.float64 se non riconosciuto
+            except Exception as e:
+                QMessageBox.critical(self.dlg, self.tr("Errore"), self.tr(f"Errore nell'ottenere il tipo di dati: {str(e)}"))
+                return
+
             data = np.frombuffer(block.data(), dtype=dtype)
         
         # Verifica che extent sia definito
@@ -570,6 +615,12 @@ class HypsometricCurve:
         # Calculate areas using the updated `calculate_area_in_range`
         partial_areas, cumulative_areas = self.calculate_area_in_range(raster_layer, cell_area, band_index, basin_geom, dtype, index)
 
+        if partial_areas is None or cumulative_areas is None:
+            # Gestisci l'errore, ad esempio, fermando il processo o mostrando un messaggio all'utente
+            self.dlg.progressBar.setValue(0)
+            self.clear_memory()
+            return
+
         # Modifica del TypeError: cumulative_areas convertito in lista mutabile.
         cumulative_areas = list(cumulative_areas)
         cumulative_areas[0] = total_area  # Ora supporta l'assegnazione
@@ -668,6 +719,8 @@ class HypsometricCurve:
         """
         Calcola le aree parziali e cumulative dei pixel in intervalli di elevazione.
         """
+        dataset = None  # Inizializza come None
+
         if index==0: 
             # Full raster analysis
             file_path = raster_layer.dataProvider().dataSourceUri()
@@ -689,7 +742,22 @@ class HypsometricCurve:
             extent = raster_layer.extent()
             width, height = raster_layer.width(), raster_layer.height()
             block = provider.block(band_index, extent, width, height)
-            block = np.frombuffer(block.data(), dtype=dtype).reshape((height, width))
+            
+            # Verifica che i dati abbiano la dimensione corretta
+            raw_data = np.frombuffer(block.data(), dtype=dtype)
+            expected_size = width * height
+            actual_size = raw_data.size
+
+            if actual_size != expected_size:
+                QMessageBox.warning(
+                    self.dlg,
+                    self.tr("Attenzione"),
+                    self.tr(f"Dimensione dei dati ({actual_size}) non corrisponde a quella attesa ({expected_size}).")
+                )
+                return None, None  # Interrompi il calcolo se le dimensioni non sono corrette
+
+            # Rimodella i dati
+            block = raw_data.reshape((height, width))
 
         # Maschera i valori NoData
         no_data_value = raster_layer.dataProvider().sourceNoDataValue(band_index)
@@ -734,10 +802,6 @@ class HypsometricCurve:
             cumulative_areas.insert(0, cumulative_sum)
 
         return partial_areas, cumulative_areas
-
-
-
-
 
     def calculate_statistical_means(self, valid_data, intervals):
         """
@@ -805,28 +869,9 @@ class HypsometricCurve:
         hi_mean = np.mean(partial_hi) if partial_hi else 0
         return hi_mean
 
-    def normalize_and_invert_areas(self, cumulative_areas, total_area):
-        """
-        Normalizza le aree cumulative rispetto all'area totale e inverte l'ordine.
-        """
-        normalized_areas = [area / total_area for area in cumulative_areas]
-        return normalized_areas[::-1]
-
-    def calculate_relative_heights(self, intervals):
-        """
-        Calcola i valori di altezza cumulativa e il rapporto con H totale.
-        """
-        h_values = []
-        for i in range(len(intervals) - 1):
-            h_values.append(intervals[i + 1] - intervals[i])
-        cumulative_h = np.cumsum(h_values)
-        h_total = cumulative_h[-1]
-        h_ratios = [h / h_total for h in cumulative_h]
-        return h_ratios[::-1]
-
     def populate_table_with_corrected_values(self, intervals, partial_areas, cumulative_areas, total_area, valid_data):
         """
-        Fill table with corrected hypsometric data including proper calculation of dA, h, and h_tot.
+        Fill table with corrected hypsometric data including proper calculation of A, h, and h_tot.
         """
         # Calcola i valori medi degli intervalli
         statistical_means = self.calculate_statistical_means(valid_data, intervals)
@@ -865,9 +910,9 @@ class HypsometricCurve:
 
             # Popolamento delle celle della tabella
             self.dlg.tableWidget_tabella.setItem(i, 0, QTableWidgetItem(f"{intervals[i]:.2f}-{intervals[i + 1]:.2f}"))
-            self.dlg.tableWidget_tabella.setItem(i, 1, QTableWidgetItem(f"{a_area:.2f}"))       # dA
-            self.dlg.tableWidget_tabella.setItem(i, 2, QTableWidgetItem(f"{a_cum:.2f}"))        # Acum
-            self.dlg.tableWidget_tabella.setItem(i, 3, QTableWidgetItem(f"{a_cum_norm:.4f}"))   # A/Atot
+            self.dlg.tableWidget_tabella.setItem(i, 1, QTableWidgetItem(f"{a_area:.2f}"))       # da
+            self.dlg.tableWidget_tabella.setItem(i, 2, QTableWidgetItem(f"{a_cum:.2f}"))        # a
+            self.dlg.tableWidget_tabella.setItem(i, 3, QTableWidgetItem(f"{a_cum_norm:.4f}"))   # a/A
             self.dlg.tableWidget_tabella.setItem(i, 4, QTableWidgetItem(f"{h_sum:.2f}"))        # h cumulativo
             self.dlg.tableWidget_tabella.setItem(i, 5, QTableWidgetItem(f"{hmed:.2f}"))         # hmed
             self.dlg.tableWidget_tabella.setItem(i, 6, QTableWidgetItem(f"{h_h_tot:.4f}"))      # h/H
@@ -898,11 +943,14 @@ class HypsometricCurve:
 
         # Traccia la curva ipsometrica usando a_norm e h_norm
         ax.plot(a_norm, h_norm, color=self.selected_color.name(), label=self.tr("Curva ipsometrica"))
-        ax.set_xlabel("a/A", labelpad=15, fontweight="bold")
-        ax.set_ylabel("h/H", labelpad=10, fontweight="bold")
-        ax.set_title(self.tr("Curva ipsometrica"), pad=20, fontweight="bold")
+        ax.set_xlabel("a/A", labelpad=5, fontweight="bold")
+        ax.set_ylabel("h/H", labelpad=5, fontweight="bold")
+        ax.set_title(self.tr("Curva ipsometrica"), pad=10, fontweight="bold")
         ax.legend()
         ax.grid(True)  # Mostra la griglia
+        
+        # Use tight_layout to automatically adjust the subplots to fit the figure area
+        plt.tight_layout(pad=0.5)  # Ottimizza automaticamente i margini per evitare che vengano tagliati
 
         # Imposta i limiti degli assi da 0 a 1
         ax.set_xlim(0, 1.1)
@@ -942,9 +990,6 @@ class HypsometricCurve:
                 # Gestisci il caso in cui la proiezione di HI non sia stata trovata
                 print(self.tr("Proiezione di HI non trovata."))
         
-        # Adatta il layout per garantire che titoli e etichette siano visibili
-        plt.tight_layout()
-
         # Crea il canvas per visualizzare il grafico nel QGraphicsView
         canvas = FigureCanvas(fig)
         canvas.setFixedSize(521, 351)  # Assicurati che il canvas si adatti alle dimensioni della vista grafica
@@ -966,9 +1011,9 @@ class HypsometricCurve:
         ax.set_ylim(0, 1.1)
         
         # Set labels for the axes
-        ax.set_xlabel("a/A", labelpad=15, fontweight="bold")
-        ax.set_ylabel("h/H", labelpad=10, fontweight="bold")
-        ax.set_title(self.tr("Curva ipsometrica"), pad=20, fontweight="bold")
+        ax.set_xlabel("a/A", labelpad=5, fontweight="bold", fontsize=10)
+        ax.set_ylabel("h/H", labelpad=5, fontweight="bold", fontsize=10)
+        ax.set_title(self.tr("Curva ipsometrica"), pad=10, fontweight="bold", fontsize=12)
         
         # Add a grid
         ax.grid(True)
@@ -977,7 +1022,7 @@ class HypsometricCurve:
         # plt.subplots_adjust(bottom=0.15, left=0.1, right=0.9, top=0.85)  # Modifica i margini (aumenta bottom, top, left, right)
     
         # Use tight_layout to automatically adjust the subplots to fit the figure area
-        plt.tight_layout()  # Ottimizza automaticamente i margini per evitare che vengano tagliati
+        plt.tight_layout(pad=0.5)  # Ottimizza automaticamente i margini per evitare che vengano tagliati
         
         # Create a canvas for displaying the figure in the graphics view
         canvas = FigureCanvas(fig)
@@ -1010,12 +1055,15 @@ class HypsometricCurve:
         
         # Draw the hypsometric curve with the selected color
         ax.plot(a_norm, h_norm, color=self.selected_color.name(), label=self.tr("Curva ipsometrica"))
-        ax.set_xlabel("a/A", labelpad=15, fontweight="bold")
-        ax.set_ylabel("h/H", labelpad=10, fontweight="bold")
-        ax.set_title(self.tr("Curva ipsometrica"), pad=20, fontweight="bold")
+        ax.set_xlabel("a/A", labelpad=5, fontweight="bold", fontsize=10)
+        ax.set_ylabel("h/H", labelpad=5, fontweight="bold", fontsize=10)
+        ax.set_title(self.tr("Curva ipsometrica"), pad=10, fontweight="bold", fontsize=12)
         ax.legend()
         ax.grid(True)  # Show grid
-        
+
+         # Adjust the layout to ensure titles and labels fit properly
+        plt.tight_layout(pad=0.5)
+
         # Set the x and y axis limits from 0 to 1.1
         ax.set_xlim(0, 1.1)
         ax.set_ylim(0, 1.1)
@@ -1047,9 +1095,6 @@ class HypsometricCurve:
                 fontweight='bold'       # Adds bold to text
             )
 
-        # Adjust the layout to ensure titles and labels fit properly
-        plt.tight_layout()
-
         # Create the FigureCanvas to display the graph in the graphics view
         canvas = FigureCanvas(fig)
         canvas.setFixedSize(521, 351)  # Set the canvas to a fixed size
@@ -1063,25 +1108,27 @@ class HypsometricCurve:
 
     def reset_fields(self):
         """Reset all input and output fields."""
+        # Controlla se self.dlg e' correttamente inizializzato e contiene tableWidget_tabella
+        if self.dlg and hasattr(self.dlg, 'tableWidget_tabella') and self.dlg.tableWidget_tabella:
 
-        # Check if there is data in the table before proceeding
-        if self.dlg.tableWidget_tabella.rowCount() > 0:
+            # Check if there is data in the table before proceeding
+            if self.dlg.tableWidget_tabella.rowCount() > 0:
 
-            # Create the confirmation message
-            reply = QMessageBox.question(self.dlg, self.tr('Conferma'),
-                                        self.tr("Sei sicuro di voler resettare tutti i campi e i dati?"),
-                                        QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            
-            if reply == QMessageBox.Yes:
-                # If "Yes"
-                # Clear your memory
-                self.clear_memory()
+                # Create the confirmation message
+                reply = QMessageBox.question(self.dlg, self.tr('Conferma'),
+                                            self.tr("Sei sicuro di voler resettare tutti i campi e i dati?"),
+                                            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                
+                if reply == QMessageBox.Yes:
+                    # If "Yes"
+                    # Clear your memory
+                    self.clear_memory()
 
-                # Reset the graph to the initial state with axes from 0 to 1 and grid
-                self.initialize_graph()
-            else:
-                # If "No
-                pass
+                    # Reset the graph to the initial state with axes from 0 to 1 and grid
+                    self.initialize_graph()
+                else:
+                    # If "No
+                    pass
     
     def clear_memory(self):
         """Clear internal memory of stored data."""
@@ -1125,7 +1172,7 @@ class HypsometricCurve:
             try:
                 with open(filename, 'w', newline='', encoding='utf-8') as f:
                     writer = csv.writer(f, delimiter=';')
-                    writer.writerow([self.tr("Intervalli"), "dA", "Acum", "Acum/Atot", "h", "hmed", "h/H"])
+                    writer.writerow([self.tr("Intervalli"), "da", "a", "a/A", "h", "hmed", "h/H"])
                     
                     for row in range(table.rowCount()):
                         row_data = []
@@ -1197,8 +1244,8 @@ class HypsometricCurve:
         """Resize columns."""
         table = self.dlg.tableWidget_tabella
         table.setColumnWidth(0, 110)    # Intervalli
-        table.setColumnWidth(1, 80)     # dA
-        table.setColumnWidth(2, 100)    # a_cum
+        table.setColumnWidth(1, 80)     # da
+        table.setColumnWidth(2, 100)    # a
         table.setColumnWidth(3, 60)     # a/A
         table.setColumnWidth(4, 60)     # h
         table.setColumnWidth(5, 60)     # hmed
@@ -1206,18 +1253,25 @@ class HypsometricCurve:
     
     def handle_close(self):
         """Clears the UI and closes the window."""
+        if not hasattr(self, 'dlg') or self.dlg is None:
+            return  # Nessuna finestra da chiudere
+
         try:
             # Check if the table contains non-empty data
             table_widget = self.dlg.tableWidget_tabella
-            has_non_empty_rows = any(
-                table_widget.item(row, col) is not None and table_widget.item(row, col).text().strip() != ""
-                for row in range(table_widget.rowCount())
-                for col in range(table_widget.columnCount())
-            )
+            if table_widget is not None:
+                has_non_empty_rows = any(
+                    table_widget.item(row, col) is not None and table_widget.item(row, col).text().strip() != ""
+                    for row in range(table_widget.rowCount())
+                    for col in range(table_widget.columnCount())
+                )
+            else:
+                has_non_empty_rows = False
 
             # If the table is empty, close the window directly
             if not has_non_empty_rows:
-                self.dlg.close()
+                if self.dlg:
+                    self.dlg.close()
                 return
 
             # Show a confirmation message
@@ -1232,36 +1286,40 @@ class HypsometricCurve:
             # If the user chooses 'No', exit the function without doing anything
             if reply == QMessageBox.No:
                 return
-            
+
             # Clear the tableWidget_value
-            self.dlg.tableWidget_tabella.clearContents()
-            self.dlg.tableWidget_tabella.setRowCount(0)
+            if table_widget is not None:
+                table_widget.clearContents()
+                table_widget.setRowCount(0)
 
-            # Release the graphic scene if it exists
-            if hasattr(self, 'canvas') and self.canvas:
-                self.canvas.close()
-                self.canvas.deleteLater()
-                self.canvas = None
-
-            if self.dlg.graphicsView_grafico.scene():
-                self.dlg.graphicsView_grafico.scene().clear()
-                self.dlg.graphicsView_grafico.setScene(None)
+            # Reset the graph to its initial state
+            self.initialize_graph()
 
             # Reset progress bar
             self.dlg.progressBar.setValue(0)
 
-            # Reset lineEdit
-            self.dlg.lineEdit_hmin.clear()
-            self.dlg.lineEdit_hmax.clear()
-            self.dlg.lineEdit_A.clear()
-            self.dlg.lineEdit_hmed.clear()
-            self.dlg.lineEdit_HI.clear()
-
+            # Reset lineEdit fields
+            if self.dlg.lineEdit_hmin:
+                self.dlg.lineEdit_hmin.clear()
+            if self.dlg.lineEdit_hmax:
+                self.dlg.lineEdit_hmax.clear()
+            if self.dlg.lineEdit_A:
+                self.dlg.lineEdit_A.clear()
+            if self.dlg.lineEdit_hmed:
+                self.dlg.lineEdit_hmed.clear()
+            if self.dlg.lineEdit_HI:
+                self.dlg.lineEdit_HI.clear()
+            
             # Clear your memory
-            self.clear_memory()
+            if hasattr(self, 'clear_memory'):
+                self.clear_memory()
 
-            # Close the dialogue
-            self.dlg.close()         
+            #close
+            self.dlg.close()
 
         except Exception as e:
-            QMessageBox.critical(self.dlg, self.tr("Errore"), self.tr(f"Errore durante la chiusura: {str(e)}"))
+            QMessageBox.critical(
+                self.dlg if hasattr(self, 'dlg') and self.dlg else None,
+                self.tr("Errore"),
+                self.tr(f"Errore durante la chiusura: {str(e)}")
+            )

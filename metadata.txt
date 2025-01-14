@@ -6,7 +6,7 @@
 name=Hypsometric Curve
 qgisMinimumVersion=3.0
 description=Calcola la curva ipsometrica di un bacino idrografico partendo da un layer DEM e da un layer vettoriale contenente il poligono che delimita il bacino stesso. Puoi assegnare la banda di colore per la definizione delle quote altimetriche del terreno, inserire il numero per suddividere l'area del bacino delimitato dal poligono, per la definizione degli intervalli delle quote altimetriche. *** English: Calculate the hypsometric curve of a hydrographic basin starting from a DEM layer and a vector layer containing the polygon that delimits the basin itself. You can assign the color band to define the elevations of the terrain, enter the number to divide the area of ​​the basin delimited by the polygon, to define the intervals of the elevations.
-version=0.5
+version=0.6
 author=dr. Geol. Faustino Cetraro
 email=geol-faustino@libero.it
 
