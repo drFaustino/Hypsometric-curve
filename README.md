@@ -138,7 +138,6 @@ Il plugin è stato testato con:
 
 **Dr. Geol. Faustino Cetraro**  
 Scientific communicator & editorial architect  
-Email: *geol-faustino@libero.it*
 
 ---
 
