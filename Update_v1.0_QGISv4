@@ -1,0 +1,1 @@
+ull update for Qt6 and compatibility with QGIS 4, introducing a redesigned management of the Hypsometric Integral (HI) and the projection of the hypsometric curve. Performance has been significantly improved through GDAL rasterization (ALL_TOUCHED=TRUE), and the entire plugin has been fully refactored into a clean modular structure (core/, gui/, resources/).
