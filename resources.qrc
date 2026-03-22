@@ -1,5 +1,0 @@
-<RCC>
-    <qresource prefix="/plugins/hypsometric_curve" >
-        <file>icon.png</file>
-    </qresource>
-</RCC>
