@@ -1,0 +1,37 @@
+cff-version: 1.2.0
+message: "Se utilizzi questo plugin in pubblicazioni scientifiche, per favore cita il lavoro come indicato."
+title: "Hypsometric Curve: QGIS 4 Plugin for Hypsometric Analysis"
+abstract: >
+  Hypsometric Curve è un plugin per QGIS 4 che calcola la curva ipsometrica
+  di un bacino idrografico a partire da un modello digitale di elevazione (DEM)
+  e da un poligono di delimitazione. Include calcolo di h_min, h_max, h_med,
+  Hypsometric Integral (HI), aree parziali e cumulative, grafico interattivo
+  e esportazione dei risultati. Il plugin utilizza rasterizzazione GDAL
+  (ALL_TOUCHED=TRUE) per massima accuratezza e prestazioni.
+authors:
+  - family-names: "Cetraro"
+    given-names: "Faustino"
+    affiliation: "Scientific Communicator & Editorial Architect"
+    email: "geol-faustino@libero.it"
+version: "1.0.0"
+date-released: "2026-03-21"
+license: "GPL-2.0-or-later"
+repository-code: "https://github.com/drFaustino/Hypsometric-curve"
+keywords:
+  - QGIS
+  - GIS
+  - Hypsometric Curve
+  - Hypsometric Integral
+  - Geomorphology
+  - DEM
+  - GDAL
+  - Hydrology
+  - Terrain Analysis
+preferred-citation:
+  type: software
+  title: "Hypsometric Curve: QGIS 4 Plugin for Hypsometric Analysis"
+  authors:
+    - family-names: "Cetraro"
+      given-names: "Faustino"
+  year: 2026
+  version: "1.0.0"

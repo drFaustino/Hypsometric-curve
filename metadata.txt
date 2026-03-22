@@ -1,47 +1,31 @@
-# This file contains metadata for your plugin.
-
-# This file should be included when you package your plugin.# Mandatory items:
-
 [general]
 name=Hypsometric Curve
-qgisMinimumVersion=3.0
-description=Calcola la curva ipsometrica di un bacino idrografico partendo da un layer DEM e da un layer vettoriale contenente il poligono che delimita il bacino stesso. Puoi assegnare la banda di colore per la definizione delle quote altimetriche del terreno, inserire il numero per suddividere l'area del bacino delimitato dal poligono, per la definizione degli intervalli delle quote altimetriche. *** English: Calculate the hypsometric curve of a hydrographic basin starting from a DEM layer and a vector layer containing the polygon that delimits the basin itself. You can assign the color band to define the elevations of the terrain, enter the number to divide the area of ​​the basin delimited by the polygon, to define the intervals of the elevations.
-version=0.6
-author=dr. Geol. Faustino Cetraro
+qgisMinimumVersion=3.40
+qgisMaximumVersion=4.99
+supportsQt6=True
+version=1.0.0
+author=Dr. Geol. Faustino Cetraro
 email=geol-faustino@libero.it
-
-about=Calcola la curva ipsometrica di un bacino idrografico da un layer DEM del terreno e dalla definizione del perimetro del bacino, ottenuto da un layer vettoriale contenente il poligono che ne delimita i confini. È possibile scegliere il numero di banda per le quote altimetriche del terreno e definire il numero di classi degli intervalli di quota altimetrica per suddividere l'area del bacino stesso. Come risultato, vengono calcolate la quota minima, massima e media all'interno del poligono del bacino, l'area totale e il valore dell'integrale ipsometrico. Inoltre, viene disegnato il grafico della curva ipsometrica, con i relativi valori calcolati riportati in una tabella. È possibile salvare sia il grafico in formato immagine che la tabella dei valori in un file CSV o TXT. Per il funzionamento del plugin è richiesto l'uso delle librerie numpy, matplotlib, pyplot e csv. *** English: Calculates the hypsometric curve of a drainage basin from a DEM layer of the terrain and from the definition of the perimeter of the basin, obtained from a vector layer containing the polygon that delimits its boundaries. It is possible to choose the number of bands for the elevations of the terrain and define the number of classes of the elevation intervals to divide the area of ​​the basin itself. As a result, the minimum, maximum and average elevation within the polygon of the basin, the total area and the value of the hypsometric integral are calculated. In addition, the graph of the hypsometric curve is drawn, with the relative calculated values ​​reported in a table. It is possible to save both the graph in image format and the table of values ​​in a CSV or TXT file. For the plugin to work, the use of the numpy, matplotlib, pyplot and csv libraries is required.
-
-tracker=https://github.com/drFaustino/Hypsometric-curve
-repository=https://github.com/drFaustino/Hypsometric-curve
-# End of mandatory metadata
-
-# Recommended items:
-
-hasProcessingProvider=no
-# Uncomment the following line and add your changelog:
-# changelog=
-
-# Tags are comma separated with spaces allowed
-tags=analysis, feature, polyline, polygon, statistics, vector
-
 homepage=https://github.com/drFaustino/Hypsometric-curve
-category=Vector
-icon=icon.png
-# experimental flag
+repository=https://github.com/drFaustino/Hypsometric-curve
+tracker=https://github.com/drFaustino/Hypsometric-curve
+icon=resources/images/default_icon.png
+category=Analysis
+tags=hypsometry, geomorphology, dem, elevation, basin, hydrology, statistics, raster, vector, analysis
 experimental=False
-
-# deprecated flag (applies to the whole plugin, not just a single version)
 deprecated=False
+hasProcessingProvider=False
 
-# Since QGIS 3.8, a comma separated list of plugins to be installed
-# (or upgraded) can be specified.
-# Check the documentation for more information.
-# plugin_dependencies=
+about=Calculate the hypsometric curve of a drainage basin starting from a DEM and a polygon representing the basin boundary. The plugin computes elevation intervals, partial and cumulative areas, h_min, h_max, h_med, and the Hypsometric Integral (HI). It also generates the hypsometric curve graph and allows exporting both the table and the plot.
 
-Category of the plugin: Raster, Vector, Database or Web
-# category=
+description=This plugin calculates the hypsometric curve of a drainage basin using a DEM raster layer and a vector polygon representing the basin boundary. It allows selecting the number of elevation classes, computes partial and cumulative areas, minimum, maximum and mean elevation, and the Hypsometric Integral (HI). The plugin also generates the hypsometric curve graph and provides export options for both the table (CSV/TXT) and the graph (PNG/JPG). It requires NumPy and Matplotlib.
 
-# If the plugin can run on QGIS Server.
-server=False
+changelog=Version 1.0.0:
+ - Complete refactoring for QGIS 4 and Qt6
+ - Modular architecture (core/, gui/, resources/)
+ - GDAL rasterization (ALL_TOUCHED=TRUE) for high performance
+ - Optimized NumPy-based calculations
+ - Improved graph rendering and HI projection
+ - Enhanced table export and formatting
+ - Updated metadata and documentation
 
