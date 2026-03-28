@@ -10,7 +10,9 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QGraphicsScene, QColorDialog
-
+from qgis.PyQt.QtCore import (
+    QCoreApplication, QSettings, QTranslator, QProcess
+)
 
 class GraphManager:
     """
@@ -69,7 +71,7 @@ class GraphManager:
         ax.set_ylim(0, 1.1)
         ax.set_xlabel("a/A", fontweight="bold")
         ax.set_ylabel("h/H", fontweight="bold")
-        ax.set_title("Curva ipsometrica", fontweight="bold")
+        ax.set_title(QCoreApplication.translate("HypsometricCurve", "Curva ipsometrica"), fontweight="bold")
         ax.grid(True)
 
         fig.tight_layout(pad=0.5)
@@ -107,14 +109,14 @@ class GraphManager:
             h_norm,
             color=self.selected_color.name(),
             linewidth=1.8,
-            label="Curva ipsometrica",
+            label=QCoreApplication.translate("HypsometricCurve", "Curva ipsometrica"),
         )
 
         ax.set_xlim(0, 1.1)
         ax.set_ylim(0, 1.1)
         ax.set_xlabel("a/A", fontweight="bold")
         ax.set_ylabel("h/H", fontweight="bold")
-        ax.set_title("Curva ipsometrica", fontweight="bold")
+        ax.set_title(QCoreApplication.translate("HypsometricCurve", "Curva ipsometrica"), fontweight="bold")
         ax.grid(True)
         ax.legend()
 
@@ -188,13 +190,21 @@ class GraphManager:
         from qgis.PyQt.QtWidgets import QFileDialog, QMessageBox
 
         path, _ = QFileDialog.getSaveFileName(
-            dlg, "Salva grafico", "", "Images (*.png *.jpg)"
+            dlg, QCoreApplication.translate("HypsometricCurve", "Salva grafico"), "", "Images (*.png *.jpg)"
         )
         if not path:
             return
 
         try:
             plt.savefig(path)
-            QMessageBox.information(dlg, "Salvataggio completato", "Grafico salvato!")
+            QMessageBox.information(
+                dlg, 
+                QCoreApplication.translate("HypsometricCurve", "Salvataggio completato"), 
+                QCoreApplication.translate("HypsometricCurve", "Grafico salvato!")
+                )
         except Exception as e:
-            QMessageBox.critical(dlg, "Errore", f"Errore durante il salvataggio: {e}")
+            QMessageBox.critical(
+                dlg, 
+                QCoreApplication.translate("HypsometricCurve", "Errore"), 
+                QCoreApplication.translate("HypsometricCurve", f"Errore durante il salvataggio: {e}")
+                )

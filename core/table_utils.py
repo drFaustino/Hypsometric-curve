@@ -13,6 +13,9 @@ from qgis.PyQt.QtWidgets import (
     QMessageBox,
     QFileDialog,
 )
+from qgis.PyQt.QtCore import (
+    QCoreApplication, QSettings, QTranslator, QProcess
+)
 
 
 class TableManager:
@@ -136,12 +139,16 @@ class TableManager:
         table = dlg.tableWidget_tabella
 
         if table.rowCount() == 0:
-            QMessageBox.warning(dlg, "Attenzione", "La tabella è vuota.")
+            QMessageBox.warning(
+                dlg, 
+                QCoreApplication.translate("HypsometricCurve", "Attenzione"), 
+                QCoreApplication.translate("HypsometricCurve", "La tabella è vuota.")
+                )
             return
 
         filename, _ = QFileDialog.getSaveFileName(
             dlg,
-            "Salva tabella",
+            QCoreApplication.translate("HypsometricCurve", "Salva tabella"),
             "",
             "CSV (*.csv);;Text (*.txt)",
         )
@@ -154,7 +161,15 @@ class TableManager:
         try:
             with open(filename, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f, delimiter=";")
-                writer.writerow(["Intervalli", "da", "a", "a/A", "h", "hmed", "h/H"])
+                writer.writerow(
+                    [QCoreApplication.translate("HypsometricCurve", "Intervalli"),
+                     QCoreApplication.translate("HypsometricCurve", "da"), 
+                     QCoreApplication.translate("HypsometricCurve", "a"),
+                       "a/A", 
+                       "h", 
+                       "hmed", 
+                       "h/H"]
+                       )
 
                 for row in range(table.rowCount()):
                     row_data = []
@@ -172,7 +187,15 @@ class TableManager:
 
                     writer.writerow(row_data)
 
-            QMessageBox.information(dlg, "Salvataggio completato", "Tabella salvata!")
+            QMessageBox.information(
+                dlg, 
+                QCoreApplication.translate("HypsometricCurve", "Salvataggio completato"),
+                 QCoreApplication.translate("HypsometricCurve", "Tabella salvata!")
+                 )
 
         except Exception as e:
-            QMessageBox.critical(dlg, "Errore", f"Errore durante il salvataggio: {e}")
+            QMessageBox.critical(
+                dlg, 
+                QCoreApplication.translate("HypsometricCurve", "Errore"), 
+                QCoreApplication.translate("HypsometricCurve", f"Errore durante il salvataggio: {e}")
+            )
