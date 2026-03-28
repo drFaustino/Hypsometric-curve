@@ -1,7 +1,6 @@
 Hypsometric Curve – QGIS Plugin
 Copyright (C) 2024-2026
 Dr. Geol. Faustino Cetraro
-Email: geol-faustino@libero.it
 
 This software is released under the GNU General Public License (GPL), version 2
 or (at your option) any later version.
