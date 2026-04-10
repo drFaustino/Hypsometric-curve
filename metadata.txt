@@ -1,47 +1,41 @@
-# This file contains metadata for your plugin.
-
-# This file should be included when you package your plugin.# Mandatory items:
-
 [general]
 name=Hypsometric Curve
-qgisMinimumVersion=3.0
-description=Calcola la curva ipsometrica di un bacino idrografico partendo da un layer DEM e da un layer vettoriale contenente il poligono che delimita il bacino stesso. Puoi assegnare la banda di colore per la definizione delle quote altimetriche del terreno, inserire il numero per suddividere l'area del bacino delimitato dal poligono, per la definizione degli intervalli delle quote altimetriche.
-version=0.2
-author=dr. Geol. Faustino Cetraro
+qgisMinimumVersion=4.0
+qgisMaximumVersion=4.99
+supportsQt6=True
+version=1.1.1
+author=Dr. Geol. Faustino Cetraro
 email=geol-faustino@libero.it
-
-about=Calcola la curva ipsometrica di un bacino idrografico da un layer DEM del terreno e dalla definizione del perimetro del bacino, ottenuto da un layer vettoriale contenente il poligono che ne delimita i confini. È possibile scegliere il numero di banda per le quote altimetriche del terreno e definire il numero di classi degli intervalli di quota altimetrica per suddividere l'area del bacino stesso. Come risultato, vengono calcolate la quota minima, massima e media all'interno del poligono del bacino, l'area totale e il valore dell'integrale ipsometrico. Inoltre, viene disegnato il grafico della curva ipsometrica, con i relativi valori calcolati riportati in una tabella. È possibile salvare sia il grafico in formato immagine che la tabella dei valori in un file CSV o TXT. Per il funzionamento del plugin è richiesto l'uso delle librerie numpy, matplotlib, pyplot e csv.
-
-tracker=https://github.com/drFaustino/Hypsometric-curve
-repository=https://github.com/drFaustino/Hypsometric-curve
-# End of mandatory metadata
-
-# Recommended items:
-
-hasProcessingProvider=no
-# Uncomment the following line and add your changelog:
-# changelog=
-
-# Tags are comma separated with spaces allowed
-tags=analysis, feature, polyline, polygon, statistics, vector
-
 homepage=https://github.com/drFaustino/Hypsometric-curve
-category=Vector
-icon=icon.png
-# experimental flag
+repository=https://github.com/drFaustino/Hypsometric-curve
+tracker=https://github.com/drFaustino/Hypsometric-curve
+icon=resources/images/icona_hyp.png
+category=Analysis
+tags=hypsometry, geomorphology, dem, elevation, basin, hydrology, statistics, raster, vector, analysis
 experimental=False
-
-# deprecated flag (applies to the whole plugin, not just a single version)
 deprecated=False
+hasProcessingProvider=False
 
-# Since QGIS 3.8, a comma separated list of plugins to be installed
-# (or upgraded) can be specified.
-# Check the documentation for more information.
-# plugin_dependencies=
+about=Calculate the hypsometric curve of a drainage basin starting from a DEM and a polygon representing the basin boundary. The plugin computes elevation intervals, partial and cumulative areas, h_min, h_max, h_med, and the Hypsometric Integral (HI). It also generates the hypsometric curve graph and allows exporting both the table and the plot. Fully compatible with QGIS 4 and Qt6.
 
-Category of the plugin: Raster, Vector, Database or Web
-# category=
+description=This plugin calculates the hypsometric curve of a drainage basin using a DEM raster layer and a vector polygon representing the basin boundary. It computes elevation intervals, partial and cumulative areas, minimum, maximum and mean elevation, and the Hypsometric Integral (HI). The plugin also generates the hypsometric curve graph and provides export options for both the table and the graph. Includes full QGIS 4 compatibility, robust CRS handling, improved raster masking, corrected HI computation, and customizable graph colors. Requires NumPy and Matplotlib.
 
-# If the plugin can run on QGIS Server.
-server=False
+changelog=Version 1.1.1:
+ - Fixed GeometryOperationResult errors in QGIS 4
+ - Corrected CRS transformation (geom.transform in-place)
+ - Fixed rasterization issues with geographic DEMs (EPSG:4326)
+ - Corrected HI computation (now uses real h_med)
+ - Fixed initial graph color (now synced with lbl_color)
+ - Improved graph rendering and color management
+ - Enhanced raster masking and NoData handling
+ - General stability improvements and code cleanup
 
+Version 1.1.0:
+ - Complete refactoring for QGIS 4 and Qt6
+ - Modular architecture (core/, gui/, resources/)
+ - GDAL rasterization (ALL_TOUCHED=TRUE) for high performance
+ - Optimized NumPy-based calculations
+ - Improved graph rendering and HI projection
+ - Enhanced table export and formatting
+ - Updated metadata and documentation
+ - Languages: Italian and English
