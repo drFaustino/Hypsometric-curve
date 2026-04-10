@@ -108,3 +108,5 @@ Geologist, scientific communicator, and QGIS plugin developer.
 ### 🤝 Contributions
 Contributions, bug reports, and feature requests are welcome.
 Please open an issue or submit a pull request on the repository.
+
+<img width="995" height="794" alt="img1" src="https://github.com/user-attachments/assets/c1055d35-ae43-4f15-b3a3-3e72e110cda8" />
