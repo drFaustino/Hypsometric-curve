@@ -1,45 +1,110 @@
-# Hypsometric curve 
-## plugin QGIS
-### versione 0.1, richiesto min. QGIS v. 3.x
+# Hypsometric Curve – QGIS Plugin
+A modern, modular, QGIS 4–compatible tool for computing and visualizing hypsometric curves.
 
-Calcola la **curva ipsometrica** di un bacino idrografico da un layer DEM del terreno e dalla definizione del perimetro del bacino, ottenuto da un layer vettoriale contenente il poligono che ne delimita i confini. È possibile scegliere il numero di banda per le quote altimetriche del terreno e definire il numero di classi degli intervalli di quota altimetrica per suddividere l'area del bacino stesso. Come risultato, vengono calcolate la quota minima, massima e media all'interno del poligono del bacino, l'area totale e il valore dell'integrale ipsometrico. Inoltre, viene disegnato il grafico della curva ipsometrica, con i relativi valori calcolati riportati in una tabella. È possibile salvare sia il grafico in formato immagine che la tabella dei valori in un file CSV o TXT.
+### 🌄 Overview
+* Hypsometric Curve is a scientific plugin for QGIS designed to compute:
+* Elevation intervals
+* Partial and cumulative areas
+* Mean elevation (h_med)
+* Hypsometric Integral (HI)
+* Normalized hypsometric curves (a/A vs h/H)
 
-Per il funzionamento del plugin è richiesto l'uso delle librerie **numpy**, **matplotlib**, **pyplot** e **csv**.
+It provides a clean, interactive interface and a fully modular backend optimized for QGIS 4 and Qt6.
 
-## Interfaccia del plugin
-L'interfaccia del plugin è semplice e intuitiva, progettata per agevolare l'analisi del bacino idrografico. È organizzata in tre menu principali:
+### ✨ Key Features
+🔬 Scientific Computation
+- Accurate hypsometric curve generation.
+- Correct HI computation (Pike & Wilson, 1971).
+- Support for high-resolution class intervals (10–500).
+- Robust NoData and mask handling.
 
-**Selezione del layer raster (DEM)**: permette di scegliere il layer raster contenente il Modello Digitale di Elevazione (DEM).
+### 🗺️ Raster & Vector Processing
+- Automatic detection of:
+- DEM raster layers
+- Raster bands
+- Polygon layers (basins/watersheds)
+- GDAL-based rasterization with ALL_TOUCHED=TRUE.
+- CRS transformation fully compatible with QGIS 4.
 
-**Scelta della banda**: consente di specificare il numero della banda da utilizzare nel calcolo.
+### 📊 Graph & Table Output
+- Interactive graph rendered inside a QGraphicsView.
+- Customizable curve color via QgsColorButton.
+- Optional HI projection on the curve.
+- Export graph as PNG/JPG.
+- Export table values.
 
-**Selezione del layer vettoriale**: serve per indicare il layer vettoriale che contiene il poligono delimitante il bacino idrografico.
+### 🖥️ User Interface
+Clean, organized layout:
+- Input parameters
+- Results
+- Graph
+- Table
+- Reset and refresh buttons.
+- Progress bar for long operations.
+- Automatic locale detection and translation support.
+- Validation warnings for missing layers or empty tables.
 
-Oltre ai menu principali, l'interfaccia include un controllo dedicato alla definizione del numero di intervalli di quota da considerare all'interno dei confini del bacino.
+### ⚠️ Important Notes
+Always use a projected CRS for correct area and elevation calculations.
+The Hypsometric Integral (HI) ranges from:
+- 0 → highly eroded landscapes
+- 1 → slightly eroded landscapes
 
-> **Risultati**
+Geographic CRS (e.g., EPSG:4326) may cause incorrect area values.
 
-L'elaborazione restituisce i seguenti risultati:
+### 🛠️ Requirements
+- QGIS 4.0+
+- Python 3.12+
+- Qt6
+- GDAL (included with QGIS)
+- Older versions of QGIS (3.x) are not supported.
 
-- Quota minima, massima e media all'interno del poligono che delimita il bacino.
-- Area totale del bacino.
-- Valore dell'integrale ipsometrico.
+### 📥 Installation
+- Download the plugin folder or ZIP.
+- Place it in your QGIS profile directory:
+- Codice
+<User>/AppData/Roaming/QGIS/QGIS4/profiles/<ProfileName>/python/plugins/
+- Restart QGIS.
 
-**Funzionalità aggiuntive**
+Enable the plugin from:
+Plugins → Manage and Install Plugins
 
-Il plugin genera automaticamente il grafico della curva ipsometrica, i cui valori calcolati vengono anche riportati in una tabella consultabile. È possibile esportare i risultati grazie a due opzioni di salvataggio:
+### 🚀 Usage
+- Select a DEM raster.
+- Select the raster band.
+- Select a polygon layer representing the basin.
+- Choose the number of elevation classes.
+- Click Calculate.
 
-- Il grafico può essere salvato come immagine in vari formati.
-- La tabella dei valori può essere esportata in un file CSV o TXT per ulteriori analisi.
+View:
+- h_min, h_max, h_med
+- HI
+- Hypsometric curve
+- Table of intervals and areas
 
-L'interfaccia è progettata per garantire un flusso di lavoro semplice ed efficace, combinando visualizzazione e analisi dei dati in modo pratico.
+You can also:
+- Change the curve color
+- Refresh the graph
+- Save the graph
+- Export the table
 
-![img_2](https://github.com/user-attachments/assets/d801172e-eb46-4b0f-84f4-83e2f16cffb8)
+Validation warnings will appear if:
+- No DEM or polygon is selected
+- The table is empty when saving
+- The graph is not available
 
-> **Note importanti**
+### 🧪 Scientific Reference
+Pike, R.J. & Wilson, S.E. (1971).
+Elevation–relief ratio, hypsometric integral, and geomorphic area–altitude analysis.  
+Geological Society of America Bulletin.
 
-Per eseguire i calcoli in modo accurato, è fondamentale utilizzare un **sistema di riferimento proiettato** (ad esempio, il sistema UTM). Questo garantisce che le misure, sia delle quote altimetriche del terreno che delle aree, siano corrette e coerenti.
+### 📝 License
+This plugin is released under the GPL v3 license.
 
-Inoltre, è essenziale che **entrambi i layer** coinvolti nell'analisi, ovvero il *layer raster del DEM* e il *layer vettoriale* contenente il poligono del bacino, **siano nello stesso sistema di riferimento proiettato**.
+### 👤 Author
+Faustino Cetraro  
+Geologist, scientific communicator, and QGIS plugin developer.
 
-L'adozione di un **CRS proiettato** consente di lavorare in unità metriche, migliorando la precisione delle analisi e garantendo che le aree e le altezze siano calcolate correttamente rispetto alla superficie terrestre.
+### 🤝 Contributions
+Contributions, bug reports, and feature requests are welcome.
+Please open an issue or submit a pull request on the repository.
