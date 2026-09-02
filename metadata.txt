@@ -2,8 +2,7 @@
 name=Hypsometric Curve
 qgisMinimumVersion=4.0
 qgisMaximumVersion=4.99
-supportsQt6=True
-version=1.1.1
+version=1.1.2
 author=Dr. Geol. Faustino Cetraro
 email=geol-faustino@libero.it
 homepage=https://github.com/drFaustino/Hypsometric-curve
@@ -20,7 +19,18 @@ about=Calculate the hypsometric curve of a drainage basin starting from a DEM an
 
 description=This plugin calculates the hypsometric curve of a drainage basin using a DEM raster layer and a vector polygon representing the basin boundary. It computes elevation intervals, partial and cumulative areas, minimum, maximum and mean elevation, and the Hypsometric Integral (HI). The plugin also generates the hypsometric curve graph and provides export options for both the table and the graph. Includes full QGIS 4 compatibility, robust CRS handling, improved raster masking, corrected HI computation, and customizable graph colors. Requires NumPy and Matplotlib.
 
-changelog=Version 1.1.1:
+changelog=Version 1.1.2:
+  - IndentationError fix;
+  - pass removal;
+  - QGIS 4 / Python 3.12 compatibility;
+  - GeometryOperationResult and CRS fixes;
+  - NoData/rasterization improvements;
+  - Altitude calculation and class fixes;
+  - Chart saving fix;
+  - Improvements to layer management by ID;
+  - Python syntax check;
+
+Version 1.1.1:
  - Fixed GeometryOperationResult errors in QGIS 4
  - Corrected CRS transformation (geom.transform in-place)
  - Fixed rasterization issues with geographic DEMs (EPSG:4326)

@@ -1,6 +1,43 @@
 # 📄 Changelog – Hypsometric Curve (QGIS Plugin)
 All notable changes to this project will be documented in this file.
 
+## [v1.1.3] – 2026-09-02
+### Stability, Python 3.12 & QGIS 4.2 Compatibility
+
+### 🛠️ Critical Fixes
+* Fixed the plugin loading failure caused by `IndentationError` in `core/raster_utils.py`.
+* Fixed the same class/method indentation issues in `core/table_utils.py`.
+* Removed all remaining `pass` statements from the plugin implementation.
+* Corrected initialization of classes and methods that could prevent `classFactory()` from loading the plugin.
+
+### 🗺️ QGIS 4 Geometry & CRS Compatibility
+* Improved handling of QGIS 4 `GeometryOperationResult` values.
+* Corrected in-place geometry transformation handling.
+* Improved robustness when transforming basin geometries between the vector and DEM CRS.
+* Improved rasterization reliability when working with geographic CRSs such as EPSG:4326.
+
+### 📊 Raster & Hypsometric Analysis
+* Improved NoData and masked-array handling during DEM processing.
+* Improved elevation-range and class-boundary handling.
+* Corrected the upper-bound handling of the final elevation class.
+* Improved robustness when calculating basin statistics and hypsometric values.
+
+### 📈 Graph & Output Fixes
+* Fixed graph saving so the currently generated Matplotlib figure is actually exported.
+* Improved graph refresh after recalculation and color changes.
+* Improved handling of empty or not-yet-computed results before saving tables or graphs.
+* Improved error handling to prevent unhandled exceptions from interrupting the plugin workflow.
+
+### 🧹 Internal Cleanup
+* Removed obsolete/dead code introduced by previous refactors.
+* Improved layer lookup by using QGIS layer IDs where appropriate, avoiding ambiguity when layers have identical names.
+* Improved consistency between UI, raster processing, table generation and graph rendering.
+* Verified Python source files for syntax and indentation errors under Python 3.12.
+
+### ⚠️ Compatibility
+* Target environment verified for Python 3.12.x and QGIS 4.x API changes.
+* Existing Italian and English translations were preserved without modifying their contents.
+
 ## [v1.1.2] – 2026-04-10
 UI/UX Fixes, Color System Rewrite & Validation Improvements
 

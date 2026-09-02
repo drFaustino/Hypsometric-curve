@@ -8,9 +8,8 @@ Scientific logic is delegated to core/ modules.
 import os
 
 from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator
-from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import QAction, QMessageBox
+from qgis.PyQt.QtGui import QAction, QColor, QIcon
+from qgis.PyQt.QtWidgets import QMessageBox
 
 from qgis.core import (
     Qgis,
@@ -51,6 +50,7 @@ class HypsometricCurve:
 
         # Dialog instance
         self.dlg = None
+        self._signals_connected = False
 
         # Core modules
         self.raster_proc = RasterProcessor()
@@ -132,6 +132,8 @@ class HypsometricCurve:
             self.dlg.pushButton_salva_graph.clicked.connect(self.check_and_save_graph)
             self.dlg.pushButton_refresh.clicked.connect(self.refresh_graph)
             self.dlg.pushButton_close.clicked.connect(self.close_dialog)
+            self.dlg.cmb_dem.currentIndexChanged.connect(self.update_band_list)
+            self._signals_connected = True
 
         # Inizializza grafico vuoto con il colore del QgsColorButton
         self.graph.initialize_graph(self.dlg.graphicsView_grafico, self.dlg)
@@ -173,35 +175,35 @@ class HypsometricCurve:
 
     def populate_layers(self):
         """Fill DEM, band and polygon combos."""
-        self.dlg.cmb_dem.clear()
-        dem_layers = [
-            lyr.name()
-            for lyr in QgsProject.instance().mapLayers().values()
-            if isinstance(lyr, QgsRasterLayer)
-        ]
-        self.dlg.cmb_dem.addItems(dem_layers)
+        self.dlg.cmb_dem.blockSignals(True)
+        try:
+            self.dlg.cmb_dem.clear()
+            for lyr in QgsProject.instance().mapLayers().values():
+                if isinstance(lyr, QgsRasterLayer) and lyr.isValid():
+                    self.dlg.cmb_dem.addItem(lyr.name(), lyr.id())
+        finally:
+            self.dlg.cmb_dem.blockSignals(False)
 
-        # Bands
-        self.dlg.cmb_band.clear()
-        raster_name = self.dlg.cmb_dem.currentText()
-        raster_layer = next(
-            (lyr for lyr in QgsProject.instance().mapLayers().values()
-             if lyr.name() == raster_name),
-            None,
-        )
-        if raster_layer:
-            for band in range(raster_layer.bandCount()):
-                self.dlg.cmb_band.addItem(str(band + 1), band + 1)
+        self.update_band_list()
 
-        # Polygons
         self.dlg.cmb_polibac.clear()
-        poly_layers = [
-            lyr.name()
-            for lyr in QgsProject.instance().mapLayers().values()
-            if isinstance(lyr, QgsVectorLayer)
-            and lyr.geometryType() == QgsWkbTypes.PolygonGeometry
-        ]
-        self.dlg.cmb_polibac.addItems(poly_layers)
+        for lyr in QgsProject.instance().mapLayers().values():
+            if (
+                isinstance(lyr, QgsVectorLayer)
+                and lyr.isValid()
+                and lyr.geometryType() == QgsWkbTypes.PolygonGeometry
+            ):
+                self.dlg.cmb_polibac.addItem(lyr.name(), lyr.id())
+
+    def update_band_list(self):
+        """Update the DEM band combo when the selected DEM changes."""
+        self.dlg.cmb_band.clear()
+        raster_id = self.dlg.cmb_dem.currentData()
+        raster_layer = QgsProject.instance().mapLayer(raster_id) if raster_id else None
+
+        if isinstance(raster_layer, QgsRasterLayer) and raster_layer.isValid():
+            for band in range(1, raster_layer.bandCount() + 1):
+                self.dlg.cmb_band.addItem(str(band), band)
 
     def reset_fields(self):
         # Svuota tabella
@@ -229,6 +231,19 @@ class HypsometricCurve:
     # ------------------------------------------------------------------ #
 
     def calculate(self):
+        """Run the calculation and show a user-friendly QGIS error if needed."""
+        try:
+            self._calculate_impl()
+        except Exception as error:
+            if self.dlg is not None:
+                self.dlg.progressBar.setValue(0)
+                QMessageBox.critical(
+                    self.dlg,
+                    self.tr("Errore"),
+                    self.tr(f"Errore durante il calcolo: {error}"),
+                )
+
+    def _calculate_impl(self):
         """Full hypsometric workflow."""
         dlg = self.dlg
 
@@ -250,20 +265,12 @@ class HypsometricCurve:
             return
 
         # Retrieve layers
-        raster_name = dlg.cmb_dem.currentText()
-        basin_name = dlg.cmb_polibac.currentText()
+        raster_id = dlg.cmb_dem.currentData()
+        basin_id = dlg.cmb_polibac.currentData()
         band_index = dlg.cmb_band.currentData()
 
-        raster_layer = next(
-            (lyr for lyr in QgsProject.instance().mapLayers().values()
-             if lyr.name() == raster_name),
-            None,
-        )
-        basin_layer = next(
-            (lyr for lyr in QgsProject.instance().mapLayers().values()
-             if lyr.name() == basin_name),
-            None,
-        )
+        raster_layer = QgsProject.instance().mapLayer(raster_id) if raster_id else None
+        basin_layer = QgsProject.instance().mapLayer(basin_id) if basin_id else None
 
         if not raster_layer or not basin_layer:
             QMessageBox.warning(dlg, self.tr("Errore"),
@@ -310,5 +317,5 @@ class HypsometricCurve:
         self.graph.plot_graph(self.dlg, hi)
 
         dlg.progressBar.setValue(100)
-        dlg.progressBar.setValue(0)   # retun to zero
+        dlg.progressBar.setValue(0)
 
