@@ -1,6 +1,8 @@
 # Hypsometric Curve – QGIS Plugin
 A modern, modular, QGIS 4–compatible tool for computing and visualizing hypsometric curves.
 
+Note: interface in Italian and English.
+
 <img width="1007" height="803" alt="img2" src="https://github.com/user-attachments/assets/b713eda6-7784-48f3-baba-3ee67cd00b24" />
 
 
